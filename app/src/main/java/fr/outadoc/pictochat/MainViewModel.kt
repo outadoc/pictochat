@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import fr.outadoc.pictochat.domain.LobbyManager
 import fr.outadoc.pictochat.domain.Room
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -32,13 +33,13 @@ class MainViewModel(
         )
 
     fun start() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             lobbyManager.connect()
         }
     }
 
     fun onRoomSelected(room: Room) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             lobbyManager.join(room)
         }
     }
