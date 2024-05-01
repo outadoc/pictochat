@@ -14,7 +14,13 @@ class AndroidDeviceNameProvider(
     private val applicationContext: Context,
 ) : DeviceNameProvider {
 
+    private var cachedName: String? = null
+
     override fun getDeviceName(): String {
+        return cachedName ?: getAndroidDeviceName().also { name -> cachedName = name }
+    }
+
+    private fun getAndroidDeviceName(): String {
         val permissionName = if (Build.VERSION.SDK_INT >= 31) {
             Manifest.permission.BLUETOOTH_CONNECT
         } else {

@@ -1,5 +1,6 @@
 package fr.outadoc.pictochat.domain
 
 data class Client(
-    val endpointId: String,
+    val id: String,
+    val displayName: String
 )

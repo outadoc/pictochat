@@ -8,6 +8,8 @@ class NearbyLobbyManager(
     private val connectionManager: ConnectionManager,
 ) : LobbyManager {
 
+
+
     private val _rooms: List<NearbyRoom> = listOf(
         NearbyRoom(id = "a", displayName = "Room A"),
         NearbyRoom(id = "b", displayName = "Room B"),
