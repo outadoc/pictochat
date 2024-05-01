@@ -16,7 +16,7 @@ import com.google.android.gms.nearby.connection.Payload
 import com.google.android.gms.nearby.connection.PayloadCallback
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
-import fr.outadoc.pictochat.LocalPreferencesProvider
+import fr.outadoc.pictochat.DeviceIdProvider
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.protocol.ChatPayload
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +36,7 @@ import kotlinx.serialization.protobuf.ProtoBuf
 
 class NearbyConnectionManager(
     applicationContext: Context,
-    private val localPreferencesProvider: LocalPreferencesProvider,
+    private val deviceIdProvider: DeviceIdProvider,
 ) : ConnectionManager {
 
     private var _state: MutableStateFlow<ConnectionManager.State> =
@@ -54,6 +54,24 @@ class NearbyConnectionManager(
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
             Log.d(TAG, "onConnectionInitiated: $endpointId, ${connectionInfo.endpointName}")
+
+            _state.update { state ->
+                if (state.connectedEndpoints.containsValue(connectionInfo.endpointName)
+                    || state.connectingEndpoints.containsValue(connectionInfo.endpointName)
+                ) {
+                    // We're already connected to the device with that device ID
+                    connectionsClient.rejectConnection(endpointId)
+                    return
+                }
+
+                state.copy(
+                    connectingEndpoints = state.connectingEndpoints.put(
+                        endpointId,
+                        connectionInfo.endpointName
+                    )
+                )
+            }
+
             connectionsClient.acceptConnection(endpointId, payloadCallback)
         }
 
@@ -64,17 +82,33 @@ class NearbyConnectionManager(
                     Log.d(TAG, "Connection successful")
                     _state.update { state ->
                         state.copy(
-                            connectedEndpoints = state.connectedEndpoints + endpointId
+                            connectedEndpoints = state.connectedEndpoints.put(
+                                endpointId,
+                                state.connectingEndpoints[endpointId]!!
+                            ),
+                            connectingEndpoints = state.connectingEndpoints.remove(endpointId)
                         )
                     }
                 }
 
                 ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
                     Log.d(TAG, "Connection rejected")
+                    _state.update { state ->
+                        state.copy(
+                            connectedEndpoints = state.connectedEndpoints.remove(endpointId),
+                            connectingEndpoints = state.connectingEndpoints.remove(endpointId)
+                        )
+                    }
                 }
 
                 ConnectionsStatusCodes.STATUS_ERROR -> {
                     Log.d(TAG, "Connection error")
+                    _state.update { state ->
+                        state.copy(
+                            connectedEndpoints = state.connectedEndpoints.remove(endpointId),
+                            connectingEndpoints = state.connectingEndpoints.remove(endpointId)
+                        )
+                    }
                 }
             }
         }
@@ -84,7 +118,8 @@ class NearbyConnectionManager(
 
             _state.update { state ->
                 state.copy(
-                    connectedEndpoints = state.connectedEndpoints - endpointId
+                    connectedEndpoints = state.connectedEndpoints.remove(endpointId),
+                    connectingEndpoints = state.connectingEndpoints.remove(endpointId)
                 )
             }
         }
@@ -94,8 +129,16 @@ class NearbyConnectionManager(
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
             Log.d(TAG, "onEndpointFound: $endpointId, ${info.endpointName}")
 
+            val state = _state.value
+            if (state.connectedEndpoints.containsValue(info.endpointName)
+                || state.connectingEndpoints.containsValue(info.endpointName)
+            ) {
+                // We're already connected to the device with that device ID
+                return
+            }
+
             connectionsClient.requestConnection(
-                localPreferencesProvider.preferences.value.userProfile.displayName,
+                deviceIdProvider.deviceId,
                 endpointId,
                 connectionLifecycleCallback
             )
@@ -106,7 +149,8 @@ class NearbyConnectionManager(
 
             _state.update { state ->
                 state.copy(
-                    connectedEndpoints = state.connectedEndpoints - endpointId
+                    connectedEndpoints = state.connectedEndpoints.remove(endpointId),
+                    connectingEndpoints = state.connectingEndpoints.remove(endpointId)
                 )
             }
         }
@@ -150,7 +194,7 @@ class NearbyConnectionManager(
                 Log.d(TAG, "startAdvertising")
                 connectionsClient
                     .startAdvertising(
-                        localPreferencesProvider.preferences.value.userProfile.displayName,
+                        deviceIdProvider.deviceId,
                         PICTOCHAT_SERVICE_ID,
                         connectionLifecycleCallback,
                         AdvertisingOptions.Builder()

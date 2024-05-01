@@ -38,7 +38,7 @@ class NearbyLobbyManager(
             state.copy(joinedRoomId = room.id)
         }
 
-        connectionState.connectedEndpoints.forEach { endpointId ->
+        connectionState.connectedEndpoints.keys.forEach { endpointId ->
             connectionManager.sendPayload(
                 endpointId = endpointId,
                 payload = ChatPayload.Status(
@@ -58,7 +58,7 @@ class NearbyLobbyManager(
             state.copy(joinedRoomId = null)
         }
 
-        connectionState.connectedEndpoints.forEach { client ->
+        connectionState.connectedEndpoints.keys.forEach { client ->
             connectionManager.sendPayload(
                 endpointId = client,
                 payload = ChatPayload.Status(
@@ -77,7 +77,7 @@ class NearbyLobbyManager(
             "Cannot send message without first joining a room"
         }
 
-        connectionState.connectedEndpoints.forEach { client ->
+        connectionState.connectedEndpoints.keys.forEach { client ->
             connectionManager.sendPayload(
                 endpointId = client,
                 payload = ChatPayload.TextMessage(

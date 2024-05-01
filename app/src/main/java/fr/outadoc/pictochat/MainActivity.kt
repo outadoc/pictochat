@@ -26,6 +26,7 @@ class MainActivity : ComponentActivity() {
                         module {
                             single<Context> { applicationContext }
                             single<DeviceNameProvider> { AndroidDeviceNameProvider(get()) }
+                            single<DeviceIdProvider> { InMemoryDeviceIdProvider() }
                             single<ConnectionManager> { NearbyConnectionManager(get(), get()) }
                             single<LobbyManager> { NearbyLobbyManager(get(), get()) }
                             single<LocalPreferencesProvider> {

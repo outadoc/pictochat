@@ -2,6 +2,8 @@ package fr.outadoc.pictochat.domain
 
 import fr.outadoc.pictochat.data.ReceivedPayload
 import fr.outadoc.pictochat.protocol.ChatPayload
+import kotlinx.collections.immutable.PersistentMap
+import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.io.Closeable
@@ -15,7 +17,11 @@ interface ConnectionManager : Closeable {
 
     fun sendPayload(endpointId: String, payload: ChatPayload)
 
+    /**
+     * @property connectedEndpoints Maps endpoint IDs to device IDs.
+     */
     data class State(
-        val connectedEndpoints: Set<String> = emptySet(),
+        val connectedEndpoints: PersistentMap<String, String> = persistentMapOf(),
+        val connectingEndpoints: PersistentMap<String, String> = persistentMapOf(),
     )
 }
