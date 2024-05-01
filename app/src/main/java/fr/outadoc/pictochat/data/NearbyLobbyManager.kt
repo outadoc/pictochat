@@ -8,8 +8,6 @@ import fr.outadoc.pictochat.protocol.ChatPayload
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 class NearbyLobbyManager(
     private val connectionManager: ConnectionManager,
@@ -30,53 +28,47 @@ class NearbyLobbyManager(
         )
     override val state = _state.asStateFlow()
 
-    private val stateMutex = Mutex()
+    override fun join(room: Room) {
+        val prefs = localPreferencesProvider.preferences.value
+        val connectionState = connectionManager.state.value
 
-    override suspend fun join(room: Room) {
-        stateMutex.withLock {
-            val prefs = localPreferencesProvider.preferences.value
-            val connectionState = connectionManager.state.value
+        _state.update { state ->
+            state.copy(joinedRoom = room)
+        }
 
-            _state.update { state ->
-                state.copy(joinedRoom = room)
-            }
-
-            connectionState.connectedEndpoints.forEach { endpointId ->
-                connectionManager.sendPayload(
-                    endpointId = endpointId,
-                    payload = ChatPayload.Status(
-                        displayName = prefs.userProfile.displayName,
-                        displayColor = prefs.userProfile.displayColor,
-                        roomId = room.id
-                    )
+        connectionState.connectedEndpoints.forEach { endpointId ->
+            connectionManager.sendPayload(
+                endpointId = endpointId,
+                payload = ChatPayload.Status(
+                    displayName = prefs.userProfile.displayName,
+                    displayColor = prefs.userProfile.displayColor,
+                    roomId = room.id
                 )
-            }
+            )
         }
     }
 
-    override suspend fun leaveCurrentRoom() {
-        stateMutex.withLock {
-            val prefs = localPreferencesProvider.preferences.value
-            val connectionState = connectionManager.state.value
+    override fun leaveCurrentRoom() {
+        val prefs = localPreferencesProvider.preferences.value
+        val connectionState = connectionManager.state.value
 
-            _state.update { state ->
-                state.copy(joinedRoom = null)
-            }
+        _state.update { state ->
+            state.copy(joinedRoom = null)
+        }
 
-            connectionState.connectedEndpoints.forEach { client ->
-                connectionManager.sendPayload(
-                    endpointId = client,
-                    payload = ChatPayload.Status(
-                        displayName = prefs.userProfile.displayName,
-                        displayColor = prefs.userProfile.displayColor,
-                        roomId = null
-                    )
+        connectionState.connectedEndpoints.forEach { client ->
+            connectionManager.sendPayload(
+                endpointId = client,
+                payload = ChatPayload.Status(
+                    displayName = prefs.userProfile.displayName,
+                    displayColor = prefs.userProfile.displayColor,
+                    roomId = null
                 )
-            }
+            )
         }
     }
 
-    override suspend fun sendMessage(message: String) {
+    override fun sendMessage(message: String) {
         val connectionState = connectionManager.state.value
 
         val currentRoom = checkNotNull(state.value.joinedRoom) {
