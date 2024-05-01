@@ -4,6 +4,7 @@ import android.Manifest
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.content.getSystemService
 
 interface DeviceNameProvider {
@@ -15,12 +16,18 @@ interface DeviceNameProvider {
  */
 class AndroidDeviceNameProvider(
     private val applicationContext: Context,
-): DeviceNameProvider {
+) : DeviceNameProvider {
 
     override fun getDeviceName(): String {
-        val bluetoothPermission =
-            applicationContext.checkSelfPermission(Manifest.permission.BLUETOOTH)
-        val bluetoothName =
+        val permissionName = if (Build.VERSION.SDK_INT >= 31) {
+            Manifest.permission.BLUETOOTH_CONNECT
+        } else {
+            Manifest.permission.BLUETOOTH
+        }
+
+        val bluetoothPermission: Int = applicationContext.checkSelfPermission(permissionName)
+
+        val bluetoothName: String? =
             if (bluetoothPermission == PackageManager.PERMISSION_GRANTED) {
                 val bluetoothManager = applicationContext.getSystemService<BluetoothManager>()
                 bluetoothManager?.adapter?.name
@@ -28,6 +35,6 @@ class AndroidDeviceNameProvider(
                 null
             }
 
-        return bluetoothName ?: "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}"
+        return bluetoothName ?: "${Build.MANUFACTURER} ${Build.MODEL}"
     }
 }

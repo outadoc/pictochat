@@ -45,7 +45,7 @@ class NearbyConnectionManagerImpl(
 
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
-            Log.d("NearbyConnectionManager", "onConnectionInitiated: $endpointId")
+            Log.d("NearbyConnectionManager", "onConnectionInitiated: $endpointId, ${connectionInfo.endpointName}")
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
@@ -59,7 +59,7 @@ class NearbyConnectionManagerImpl(
 
     private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-            Log.d("NearbyConnectionManager", "onEndpointFound: $endpointId")
+            Log.d("NearbyConnectionManager", "onEndpointFound: $endpointId, ${info.endpointName}")
         }
 
         override fun onEndpointLost(endpointId: String) {
