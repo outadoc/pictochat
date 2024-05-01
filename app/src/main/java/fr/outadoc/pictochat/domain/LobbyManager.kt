@@ -17,6 +17,4 @@ interface LobbyManager : Closeable {
     suspend fun sendMessage(message: String)
 
     suspend fun connect()
-    fun disconnect()
 }
-

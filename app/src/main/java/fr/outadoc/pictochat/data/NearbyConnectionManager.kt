@@ -170,19 +170,15 @@ class NearbyConnectionManager(
         connectionsClient.sendPayload(endpointId, Payload.fromBytes(protoBytes))
     }
 
-    override fun stopDiscovery() {
-        connectionsClient.stopDiscovery()
-        discoveryJob?.cancel()
-    }
-
-    override fun stopAdvertising() {
-        connectionsClient.stopAdvertising()
-        advertisingJob?.cancel()
-    }
-
     override fun close() {
-        stopDiscovery()
-        stopAdvertising()
+        discoveryJob?.cancel()
+        advertisingJob?.cancel()
+
+        connectionsClient.apply {
+            stopDiscovery()
+            stopAdvertising()
+            stopAllEndpoints()
+        }
     }
 
     companion object {

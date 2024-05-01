@@ -99,11 +99,8 @@ class NearbyLobbyManager(
         connectionManager.startDiscovery()
     }
 
-    override fun disconnect() {
-        connectionManager.stopAdvertising()
-        connectionManager.stopDiscovery()
+    override fun close() {
+        connectionManager.close()
     }
-
-    override fun close() = disconnect()
 }
 

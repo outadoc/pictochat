@@ -17,7 +17,7 @@ fun HomeScreen() {
     PermissionLocked(
         permissionsState
     ) {
-        LaunchedEffect(Any()) {
+        LaunchedEffect(Unit) {
             viewModel.start()
         }
 

@@ -15,9 +15,6 @@ interface ConnectionManager : Closeable {
 
     fun sendPayload(endpointId: String, payload: ChatPayload)
 
-    fun stopDiscovery()
-    fun stopAdvertising()
-
     data class State(
         val connectedEndpoints: Set<String> = emptySet(),
     )
