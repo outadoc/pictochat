@@ -9,7 +9,7 @@ import java.io.Closeable
 interface LobbyManager : Closeable {
 
     data class State(
-        val availableRooms: List<Room>,
+        val rooms: List<Room>,
         val knownUsers: PersistentMap<String, UserProfile> = persistentMapOf(),
         val joinedRoomId: Int? = null,
     )

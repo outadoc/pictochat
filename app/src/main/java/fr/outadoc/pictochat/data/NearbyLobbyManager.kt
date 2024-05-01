@@ -20,7 +20,7 @@ class NearbyLobbyManager(
     private val _state: MutableStateFlow<LobbyManager.State> =
         MutableStateFlow(
             LobbyManager.State(
-                availableRooms = listOf(
+                rooms = listOf(
                     Room(id = 0, displayName = "Room A"),
                     Room(id = 1, displayName = "Room B"),
                     Room(id = 2, displayName = "Room C"),
@@ -113,7 +113,7 @@ class NearbyLobbyManager(
                                     displayColor = payload.data.displayColor
                                 )
                             ),
-                        availableRooms = state.availableRooms.map { room ->
+                        rooms = state.rooms.map { room ->
                             if (room.id == payload.data.roomId) {
                                 room.copy(
                                     connectedDeviceIds = room.connectedDeviceIds.add(payload.sender.deviceId)

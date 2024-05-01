@@ -21,7 +21,7 @@ class MainViewModel(
     val state = lobbyManager.state
         .map { state ->
             State(
-                rooms = state.availableRooms,
+                rooms = state.rooms,
             )
         }
         .stateIn(
