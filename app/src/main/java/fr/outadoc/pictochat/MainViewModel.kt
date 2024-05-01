@@ -16,14 +16,12 @@ class MainViewModel(
 
     data class State(
         val rooms: List<Room> = emptyList(),
-        val joinedRoom: Room? = null,
     )
 
     val state = lobbyManager.state
         .map { state ->
             State(
                 rooms = state.availableRooms,
-                joinedRoom = state.joinedRoom
             )
         }
         .stateIn(

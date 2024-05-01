@@ -43,7 +43,7 @@ class NearbyConnectionManager(
         MutableStateFlow(ConnectionManager.State())
     override val state = _state.asStateFlow()
 
-    private val _payloadFlow = MutableSharedFlow<ChatPayload>()
+    private val _payloadFlow = MutableSharedFlow<ReceivedPayload>(extraBufferCapacity = 32)
     override val payloadFlow = _payloadFlow.asSharedFlow()
 
     private var connectionJob: Job? = null
@@ -117,7 +117,12 @@ class NearbyConnectionManager(
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
             val proto = ProtoBuf.decodeFromByteArray<ChatPayload>(payload.asBytes()!!)
             Log.d(TAG, "onPayloadReceived: $endpointId, payload: $proto")
-            _payloadFlow.tryEmit(proto)
+            _payloadFlow.tryEmit(
+                ReceivedPayload(
+                    senderEndpointId = endpointId,
+                    data = proto
+                )
+            )
         }
 
         override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {

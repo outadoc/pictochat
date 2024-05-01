@@ -1,13 +1,16 @@
 package fr.outadoc.pictochat.data
 
 import fr.outadoc.pictochat.LocalPreferencesProvider
+import fr.outadoc.pictochat.UserProfile
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
 import fr.outadoc.pictochat.domain.Room
 import fr.outadoc.pictochat.protocol.ChatPayload
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 class NearbyLobbyManager(
     private val connectionManager: ConnectionManager,
@@ -22,8 +25,7 @@ class NearbyLobbyManager(
                     Room(id = 1, displayName = "Room B"),
                     Room(id = 2, displayName = "Room C"),
                     Room(id = 3, displayName = "Room D"),
-                ),
-                joinedRoom = null
+                )
             )
         )
     override val state = _state.asStateFlow()
@@ -33,7 +35,7 @@ class NearbyLobbyManager(
         val connectionState = connectionManager.state.value
 
         _state.update { state ->
-            state.copy(joinedRoom = room)
+            state.copy(joinedRoomId = room.id)
         }
 
         connectionState.connectedEndpoints.forEach { endpointId ->
@@ -53,7 +55,7 @@ class NearbyLobbyManager(
         val connectionState = connectionManager.state.value
 
         _state.update { state ->
-            state.copy(joinedRoom = null)
+            state.copy(joinedRoomId = null)
         }
 
         connectionState.connectedEndpoints.forEach { client ->
@@ -71,15 +73,15 @@ class NearbyLobbyManager(
     override fun sendMessage(message: String) {
         val connectionState = connectionManager.state.value
 
-        val currentRoom = checkNotNull(state.value.joinedRoom) {
-            "Cannot send message without finirs joining a room"
+        val currentRoomId = checkNotNull(state.value.joinedRoomId) {
+            "Cannot send message without first joining a room"
         }
 
         connectionState.connectedEndpoints.forEach { client ->
             connectionManager.sendPayload(
                 endpointId = client,
                 payload = ChatPayload.TextMessage(
-                    roomId = currentRoom.id,
+                    roomId = currentRoomId,
                     message = message
                 )
             )
@@ -87,7 +89,61 @@ class NearbyLobbyManager(
     }
 
     override suspend fun connect() {
-        connectionManager.connect()
+        coroutineScope {
+            connectionManager.connect()
+
+            launch {
+                connectionManager.payloadFlow.collect { payload ->
+                    processPayload(payload)
+                }
+            }
+        }
+    }
+
+    private fun processPayload(payload: ReceivedPayload) {
+        when (payload.data) {
+            is ChatPayload.Status -> {
+                _state.update { state ->
+                    state.copy(
+                        knownUsers = state.knownUsers
+                            .put(
+                                payload.senderEndpointId,
+                                UserProfile(
+                                    displayName = payload.data.displayName,
+                                    displayColor = payload.data.displayColor
+                                )
+                            ),
+                        availableRooms = state.availableRooms.map { room ->
+                            if (room.id == payload.data.roomId) {
+                                room.copy(
+                                    connectedEndpointIds = room.connectedEndpointIds.add(payload.senderEndpointId)
+                                )
+                            } else {
+                                room.copy(
+                                    connectedEndpointIds = room.connectedEndpointIds.remove(payload.senderEndpointId)
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+
+            is ChatPayload.StatusRequest -> {
+                val prefs = localPreferencesProvider.preferences.value
+                connectionManager.sendPayload(
+                    endpointId = payload.senderEndpointId,
+                    payload = ChatPayload.Status(
+                        displayName = prefs.userProfile.displayName,
+                        displayColor = prefs.userProfile.displayColor,
+                        roomId = state.value.joinedRoomId
+                    )
+                )
+            }
+
+            is ChatPayload.TextMessage -> {
+
+            }
+        }
     }
 
     override fun close() {

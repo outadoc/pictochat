@@ -1,5 +1,6 @@
 package fr.outadoc.pictochat.domain
 
+import fr.outadoc.pictochat.data.ReceivedPayload
 import fr.outadoc.pictochat.protocol.ChatPayload
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -8,7 +9,7 @@ import java.io.Closeable
 interface ConnectionManager : Closeable {
 
     val state: StateFlow<State>
-    val payloadFlow: SharedFlow<ChatPayload>
+    val payloadFlow: SharedFlow<ReceivedPayload>
 
     suspend fun connect()
 

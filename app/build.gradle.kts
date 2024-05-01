@@ -68,6 +68,7 @@ dependencies {
     implementation(libs.koin.compose)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.playServices)
+    implementation(libs.kotlinx.immutableCollections)
     implementation(libs.kotlinx.serialization.protobuf)
 
     debugImplementation(libs.androidx.ui.tooling)
