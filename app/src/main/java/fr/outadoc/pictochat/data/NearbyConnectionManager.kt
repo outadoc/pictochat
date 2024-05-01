@@ -17,6 +17,7 @@ import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
 import fr.outadoc.pictochat.LocalPreferencesProvider
 import fr.outadoc.pictochat.domain.ConnectionManager
+import fr.outadoc.pictochat.protocol.ChatPayload
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -24,6 +25,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
 
 class NearbyConnectionManager(
     applicationContext: Context,
@@ -109,6 +113,13 @@ class NearbyConnectionManager(
                     .await()
             }
         }
+    }
+
+    @OptIn(ExperimentalSerializationApi::class)
+    override fun sendPayload(endpointId: String, payload: ChatPayload) {
+        val protoBytes = ProtoBuf.encodeToByteArray(payload)
+        Log.d(TAG, "Sending payload to $endpointId: $payload")
+        connectionsClient.sendPayload(endpointId, Payload.fromBytes(protoBytes))
     }
 
     override fun stopDiscovery() {

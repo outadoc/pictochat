@@ -10,6 +10,7 @@ junitVersion = "1.1.5"
 koin = "3.5.6"
 kotlin = "1.9.0"
 lifecycleRuntimeKtx = "2.7.0"
+serialization = "1.6.3"
 
 [libraries]
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version = "0.34.0" }
@@ -32,9 +33,11 @@ koin-core = { group = "io.insert-koin", name = "koin-core" }
 koin-compose = { group = "io.insert-koin", name = "koin-compose" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-playServices = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }
+kotlinx-serialization-protobuf = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-protobuf", version.ref = "serialization" }
 playServices-nearby = { module = "com.google.android.gms:play-services-nearby", version = "19.2.0" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 google-play-services = { id = "com.google.android.gms.strict-version-matcher-plugin", version = "1.2.4" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

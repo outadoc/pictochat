@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.google.play.services)
+    alias(libs.plugins.kotlinx.serialization)
 }
 
 android {
@@ -67,6 +68,7 @@ dependencies {
     implementation(libs.koin.compose)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.playServices)
+    implementation(libs.kotlinx.serialization.protobuf)
 
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)

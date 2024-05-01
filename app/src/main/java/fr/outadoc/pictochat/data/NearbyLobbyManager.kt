@@ -1,8 +1,10 @@
 package fr.outadoc.pictochat.data
 
+import fr.outadoc.pictochat.LocalPreferencesProvider
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
 import fr.outadoc.pictochat.domain.Room
+import fr.outadoc.pictochat.protocol.ChatPayload
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -11,16 +13,17 @@ import kotlinx.coroutines.sync.withLock
 
 class NearbyLobbyManager(
     private val connectionManager: ConnectionManager,
+    private val localPreferencesProvider: LocalPreferencesProvider,
 ) : LobbyManager {
 
     private val _state: MutableStateFlow<LobbyManager.State> =
         MutableStateFlow(
             LobbyManager.State(
                 availableRooms = listOf(
-                    Room(id = "a", displayName = "Room A"),
-                    Room(id = "b", displayName = "Room B"),
-                    Room(id = "c", displayName = "Room C"),
-                    Room(id = "d", displayName = "Room D"),
+                    Room(id = 0, displayName = "Room A"),
+                    Room(id = 1, displayName = "Room B"),
+                    Room(id = 2, displayName = "Room C"),
+                    Room(id = 3, displayName = "Room D"),
                 ),
                 joinedRoom = null
             )
@@ -31,26 +34,38 @@ class NearbyLobbyManager(
 
     override suspend fun join(room: Room) {
         stateMutex.withLock {
-            doLeaveCurrentRoom()
-            // TODO send room join payload
+            val prefs = localPreferencesProvider.preferences.value
+            connectionManager.sendPayload(
+                endpointId = TODO("send this for every known client"),
+                payload = ChatPayload.Status(
+                    displayName = prefs.userProfile.displayName,
+                    displayColor = prefs.userProfile.displayColor,
+                    roomId = room.id
+                )
+            )
+
             _state.update { state ->
                 state.copy(joinedRoom = room)
             }
         }
     }
 
-    override suspend fun leaveCurrentRoom(room: Room) {
+    override suspend fun leaveCurrentRoom() {
         stateMutex.withLock {
+            val prefs = localPreferencesProvider.preferences.value
+            connectionManager.sendPayload(
+                endpointId = TODO("send this for every known client"),
+                payload = ChatPayload.Status(
+                    displayName = prefs.userProfile.displayName,
+                    displayColor = prefs.userProfile.displayColor,
+                    roomId = null
+                )
+            )
+
             _state.update { state ->
                 state.copy(joinedRoom = null)
             }
-
-            doLeaveCurrentRoom()
         }
-    }
-
-    private suspend fun doLeaveCurrentRoom() {
-        // TODO send room leave payload
     }
 
     override suspend fun connect() {
