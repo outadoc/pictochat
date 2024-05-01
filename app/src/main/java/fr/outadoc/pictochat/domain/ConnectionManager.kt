@@ -15,7 +15,7 @@ interface ConnectionManager : Closeable {
 
     suspend fun connect()
 
-    fun sendPayload(endpointId: String, payload: ChatPayload)
+    suspend fun sendPayload(endpointId: String, payload: ChatPayload)
 
     /**
      * @property connectedEndpoints Maps endpoint IDs to device IDs.

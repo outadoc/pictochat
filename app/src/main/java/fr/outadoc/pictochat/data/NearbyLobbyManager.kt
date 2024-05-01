@@ -30,7 +30,7 @@ class NearbyLobbyManager(
         )
     override val state = _state.asStateFlow()
 
-    override fun join(room: Room) {
+    override suspend fun join(room: Room) {
         val prefs = localPreferencesProvider.preferences.value
         val connectionState = connectionManager.state.value
 
@@ -50,7 +50,7 @@ class NearbyLobbyManager(
         }
     }
 
-    override fun leaveCurrentRoom() {
+    override suspend fun leaveCurrentRoom() {
         val prefs = localPreferencesProvider.preferences.value
         val connectionState = connectionManager.state.value
 
@@ -70,7 +70,7 @@ class NearbyLobbyManager(
         }
     }
 
-    override fun sendMessage(message: String) {
+    override suspend fun sendMessage(message: String) {
         val connectionState = connectionManager.state.value
 
         val currentRoomId = checkNotNull(state.value.joinedRoomId) {
@@ -100,7 +100,7 @@ class NearbyLobbyManager(
         }
     }
 
-    private fun processPayload(payload: ReceivedPayload) {
+    private suspend fun processPayload(payload: ReceivedPayload) {
         when (payload.data) {
             is ChatPayload.Status -> {
                 _state.update { state ->

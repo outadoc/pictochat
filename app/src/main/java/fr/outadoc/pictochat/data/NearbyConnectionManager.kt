@@ -130,19 +130,6 @@ class NearbyConnectionManager(
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
             Log.d(TAG, "onEndpointFound: $endpointId, ${info.endpointName}")
 
-            val device = RemoteDevice(
-                endpointId = endpointId,
-                deviceId = info.endpointName
-            )
-
-            val state = _state.value
-            if (state.connectedEndpoints.contains(device)
-                || state.connectingEndpoints.contains(device)
-            ) {
-                // We're already connected to the device with that device ID
-                return
-            }
-
             connectionsClient.requestConnection(
                 deviceIdProvider.deviceId,
                 endpointId,
@@ -152,13 +139,6 @@ class NearbyConnectionManager(
 
         override fun onEndpointLost(endpointId: String) {
             Log.d(TAG, "onEndpointLost: $endpointId")
-
-            _state.update { state ->
-                state.copy(
-                    connectedEndpoints = state.connectedEndpoints.removeAll { it.endpointId == endpointId },
-                    connectingEndpoints = state.connectingEndpoints.removeAll { it.endpointId == endpointId }
-                )
-            }
         }
     }
 
@@ -213,10 +193,13 @@ class NearbyConnectionManager(
     }
 
     @OptIn(ExperimentalSerializationApi::class)
-    override fun sendPayload(endpointId: String, payload: ChatPayload) {
+    override suspend fun sendPayload(endpointId: String, payload: ChatPayload) {
         val protoBytes = ProtoBuf.encodeToByteArray(payload)
         Log.d(TAG, "Sending payload to $endpointId: $payload")
-        connectionsClient.sendPayload(endpointId, Payload.fromBytes(protoBytes))
+
+        connectionsClient
+            .sendPayload(endpointId, Payload.fromBytes(protoBytes))
+            .await()
     }
 
     override fun close() {

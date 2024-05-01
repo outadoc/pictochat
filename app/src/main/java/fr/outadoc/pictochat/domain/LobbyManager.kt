@@ -16,9 +16,9 @@ interface LobbyManager : Closeable {
 
     val state: StateFlow<State>
 
-    fun join(room: Room)
-    fun leaveCurrentRoom()
-    fun sendMessage(message: String)
+    suspend fun join(room: Room)
+    suspend fun leaveCurrentRoom()
+    suspend fun sendMessage(message: String)
 
     suspend fun connect()
 }
