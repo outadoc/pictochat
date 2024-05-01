@@ -34,15 +34,15 @@ class NearbyConnectionManager(
     private val localPreferencesProvider: LocalPreferencesProvider,
 ) : ConnectionManager {
 
-    private var connectionsClient: ConnectionsClient =
-        Nearby.getConnectionsClient(applicationContext)
-
     private var _state: MutableStateFlow<ConnectionManager.State> =
-        MutableStateFlow(ConnectionManager.State.Idle)
+        MutableStateFlow(ConnectionManager.State())
     override val state = _state.asStateFlow()
 
     private var discoveryJob: Job? = null
     private var advertisingJob: Job? = null
+
+    private var connectionsClient: ConnectionsClient =
+        Nearby.getConnectionsClient(applicationContext)
 
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
@@ -85,7 +85,7 @@ class NearbyConnectionManager(
                 Log.d(TAG, "startDiscovery")
                 connectionsClient
                     .startDiscovery(
-                        BASE_SERVICE_ID,
+                        PICTOCHAT_SERVICE_ID,
                         endpointDiscoveryCallback,
                         DiscoveryOptions.Builder()
                             .setStrategy(STRATEGY)
@@ -104,7 +104,7 @@ class NearbyConnectionManager(
                 connectionsClient
                     .startAdvertising(
                         localPreferencesProvider.preferences.value.userProfile.displayName,
-                        BASE_SERVICE_ID,
+                        PICTOCHAT_SERVICE_ID,
                         connectionLifecycleCallback,
                         AdvertisingOptions.Builder()
                             .setStrategy(STRATEGY)
@@ -139,7 +139,7 @@ class NearbyConnectionManager(
 
     companion object {
         private val STRATEGY = Strategy.P2P_CLUSTER
-        private const val BASE_SERVICE_ID = "fr.outadoc.pictochat"
+        private const val PICTOCHAT_SERVICE_ID = "fr.outadoc.pictochat"
         private const val TAG = "NearbyConnectionManager"
     }
 }

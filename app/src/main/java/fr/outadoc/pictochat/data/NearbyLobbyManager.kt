@@ -35,17 +35,21 @@ class NearbyLobbyManager(
     override suspend fun join(room: Room) {
         stateMutex.withLock {
             val prefs = localPreferencesProvider.preferences.value
-            connectionManager.sendPayload(
-                endpointId = TODO("send this for every known client"),
-                payload = ChatPayload.Status(
-                    displayName = prefs.userProfile.displayName,
-                    displayColor = prefs.userProfile.displayColor,
-                    roomId = room.id
-                )
-            )
+            val connectionState = connectionManager.state.value
 
             _state.update { state ->
                 state.copy(joinedRoom = room)
+            }
+
+            connectionState.connectedClients.forEach { client ->
+                connectionManager.sendPayload(
+                    endpointId = client.endpointId,
+                    payload = ChatPayload.Status(
+                        displayName = prefs.userProfile.displayName,
+                        displayColor = prefs.userProfile.displayColor,
+                        roomId = room.id
+                    )
+                )
             }
         }
     }
@@ -53,17 +57,21 @@ class NearbyLobbyManager(
     override suspend fun leaveCurrentRoom() {
         stateMutex.withLock {
             val prefs = localPreferencesProvider.preferences.value
-            connectionManager.sendPayload(
-                endpointId = TODO("send this for every known client"),
-                payload = ChatPayload.Status(
-                    displayName = prefs.userProfile.displayName,
-                    displayColor = prefs.userProfile.displayColor,
-                    roomId = null
-                )
-            )
+            val connectionState = connectionManager.state.value
 
             _state.update { state ->
                 state.copy(joinedRoom = null)
+            }
+
+            connectionState.connectedClients.forEach { client ->
+                connectionManager.sendPayload(
+                    endpointId = client.endpointId,
+                    payload = ChatPayload.Status(
+                        displayName = prefs.userProfile.displayName,
+                        displayColor = prefs.userProfile.displayColor,
+                        roomId = null
+                    )
+                )
             }
         }
     }
