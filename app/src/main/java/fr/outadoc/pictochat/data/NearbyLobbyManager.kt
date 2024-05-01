@@ -87,8 +87,7 @@ class NearbyLobbyManager(
     }
 
     override suspend fun connect() {
-        connectionManager.startAdvertising()
-        connectionManager.startDiscovery()
+        connectionManager.connect()
     }
 
     override fun close() {

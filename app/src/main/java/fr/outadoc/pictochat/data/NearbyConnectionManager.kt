@@ -46,8 +46,7 @@ class NearbyConnectionManager(
     private val _payloadFlow = MutableSharedFlow<ChatPayload>()
     override val payloadFlow = _payloadFlow.asSharedFlow()
 
-    private var discoveryJob: Job? = null
-    private var advertisingJob: Job? = null
+    private var connectionJob: Job? = null
 
     private var connectionsClient: ConnectionsClient =
         Nearby.getConnectionsClient(applicationContext)
@@ -126,9 +125,9 @@ class NearbyConnectionManager(
         }
     }
 
-    override suspend fun startDiscovery() {
-        discoveryJob?.cancel()
-        discoveryJob = coroutineScope {
+    override suspend fun connect() {
+        connectionJob?.cancel()
+        connectionJob = coroutineScope {
             launch(Dispatchers.IO) {
                 Log.d(TAG, "startDiscovery")
                 connectionsClient
@@ -141,12 +140,7 @@ class NearbyConnectionManager(
                     )
                     .await()
             }
-        }
-    }
 
-    override suspend fun startAdvertising() {
-        advertisingJob?.cancel()
-        advertisingJob = coroutineScope {
             launch(Dispatchers.IO) {
                 Log.d(TAG, "startAdvertising")
                 connectionsClient
@@ -171,8 +165,7 @@ class NearbyConnectionManager(
     }
 
     override fun close() {
-        discoveryJob?.cancel()
-        advertisingJob?.cancel()
+        connectionJob?.cancel()
 
         connectionsClient.apply {
             stopDiscovery()

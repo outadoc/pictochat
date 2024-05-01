@@ -10,8 +10,7 @@ interface ConnectionManager : Closeable {
     val state: StateFlow<State>
     val payloadFlow: SharedFlow<ChatPayload>
 
-    suspend fun startDiscovery()
-    suspend fun startAdvertising()
+    suspend fun connect()
 
     fun sendPayload(endpointId: String, payload: ChatPayload)
 
