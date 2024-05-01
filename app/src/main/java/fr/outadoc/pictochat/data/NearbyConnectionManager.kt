@@ -8,6 +8,7 @@ import com.google.android.gms.nearby.connection.ConnectionInfo
 import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback
 import com.google.android.gms.nearby.connection.ConnectionResolution
 import com.google.android.gms.nearby.connection.ConnectionsClient
+import com.google.android.gms.nearby.connection.ConnectionsStatusCodes
 import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo
 import com.google.android.gms.nearby.connection.DiscoveryOptions
 import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback
@@ -21,11 +22,15 @@ import fr.outadoc.pictochat.protocol.ChatPayload
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 
@@ -38,6 +43,9 @@ class NearbyConnectionManager(
         MutableStateFlow(ConnectionManager.State())
     override val state = _state.asStateFlow()
 
+    private val _payloadFlow = MutableSharedFlow<ChatPayload>()
+    override val payloadFlow = _payloadFlow.asSharedFlow()
+
     private var discoveryJob: Job? = null
     private var advertisingJob: Job? = null
 
@@ -47,30 +55,70 @@ class NearbyConnectionManager(
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
             Log.d(TAG, "onConnectionInitiated: $endpointId, ${connectionInfo.endpointName}")
+            connectionsClient.acceptConnection(endpointId, payloadCallback)
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
             Log.d(TAG, "onConnectionResult: $endpointId")
+            when (result.status.statusCode) {
+                ConnectionsStatusCodes.STATUS_OK -> {
+                    Log.d(TAG, "Connection successful")
+                    _state.update { state ->
+                        state.copy(
+                            connectedClients = state.connectedClients + endpointId
+                        )
+                    }
+                }
+
+                ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
+                    Log.d(TAG, "Connection rejected")
+                }
+
+                ConnectionsStatusCodes.STATUS_ERROR -> {
+                    Log.d(TAG, "Connection error")
+                }
+            }
         }
 
         override fun onDisconnected(endpointId: String) {
             Log.d(TAG, "onDisconnected: $endpointId")
+
+            _state.update { state ->
+                state.copy(
+                    connectedClients = state.connectedClients - endpointId
+                )
+            }
         }
     }
 
     private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
             Log.d(TAG, "onEndpointFound: $endpointId, ${info.endpointName}")
+
+            connectionsClient.requestConnection(
+                localPreferencesProvider.preferences.value.userProfile.displayName,
+                endpointId,
+                connectionLifecycleCallback
+            )
         }
 
         override fun onEndpointLost(endpointId: String) {
             Log.d(TAG, "onEndpointLost: $endpointId")
+
+            _state.update { state ->
+                state.copy(
+                    connectedClients = state.connectedClients - endpointId
+                )
+            }
         }
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
     private val payloadCallback: PayloadCallback = object : PayloadCallback() {
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
-            Log.d(TAG, "onPayloadReceived: $endpointId, payload type: ${payload.type}")
+            val proto = ProtoBuf.decodeFromByteArray<ChatPayload>(payload.asBytes()!!)
+            Log.d(TAG, "onPayloadReceived: $endpointId, payload: $proto")
+            _payloadFlow.tryEmit(proto)
         }
 
         override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
