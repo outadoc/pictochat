@@ -1,4 +1,12 @@
 pluginManagement {
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "com.google.android.gms.strict-version-matcher-plugin") {
+                useModule("com.google.android.gms:strict-version-matcher-plugin:${requested.version}")
+            }
+        }
+    }
+
     repositories {
         google {
             content {
@@ -11,6 +19,7 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
