@@ -13,7 +13,6 @@ interface ConnectionManager : Closeable {
     fun stopDiscovery()
     fun stopAdvertising()
 
-
     sealed interface State {
         data object Idle : State
     }

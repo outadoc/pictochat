@@ -11,8 +11,11 @@ import com.google.android.gms.nearby.connection.ConnectionsClient
 import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo
 import com.google.android.gms.nearby.connection.DiscoveryOptions
 import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback
+import com.google.android.gms.nearby.connection.Payload
+import com.google.android.gms.nearby.connection.PayloadCallback
+import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
-import fr.outadoc.pictochat.DeviceNameProvider
+import fr.outadoc.pictochat.LocalPreferencesProvider
 import fr.outadoc.pictochat.domain.ConnectionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -24,7 +27,7 @@ import kotlinx.coroutines.tasks.await
 
 class NearbyConnectionManager(
     applicationContext: Context,
-    private val deviceNameProvider: DeviceNameProvider,
+    private val localPreferencesProvider: LocalPreferencesProvider,
 ) : ConnectionManager {
 
     private var connectionsClient: ConnectionsClient =
@@ -39,28 +42,35 @@ class NearbyConnectionManager(
 
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
-            Log.d(
-                "NearbyConnectionManager",
-                "onConnectionInitiated: $endpointId, ${connectionInfo.endpointName}"
-            )
+            Log.d(TAG, "onConnectionInitiated: $endpointId, ${connectionInfo.endpointName}")
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
-            Log.d("NearbyConnectionManager", "onConnectionResult: $endpointId")
+            Log.d(TAG, "onConnectionResult: $endpointId")
         }
 
         override fun onDisconnected(endpointId: String) {
-            Log.d("NearbyConnectionManager", "onDisconnected: $endpointId")
+            Log.d(TAG, "onDisconnected: $endpointId")
         }
     }
 
     private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-            Log.d("NearbyConnectionManager", "onEndpointFound: $endpointId, ${info.endpointName}")
+            Log.d(TAG, "onEndpointFound: $endpointId, ${info.endpointName}")
         }
 
         override fun onEndpointLost(endpointId: String) {
-            Log.d("NearbyConnectionManager", "onEndpointLost: $endpointId")
+            Log.d(TAG, "onEndpointLost: $endpointId")
+        }
+    }
+
+    private val payloadCallback: PayloadCallback = object : PayloadCallback() {
+        override fun onPayloadReceived(endpointId: String, payload: Payload) {
+            Log.d(TAG, "onPayloadReceived: $endpointId, payload type: ${payload.type}")
+        }
+
+        override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
+            Log.d(TAG, "onPayloadTransferUpdate: $endpointId, transfer: ${update.status}")
         }
     }
 
@@ -68,7 +78,7 @@ class NearbyConnectionManager(
         discoveryJob?.cancel()
         discoveryJob = coroutineScope {
             launch(Dispatchers.IO) {
-                Log.d("NearbyConnectionManager", "startDiscovery")
+                Log.d(TAG, "startDiscovery")
                 connectionsClient
                     .startDiscovery(
                         BASE_SERVICE_ID,
@@ -86,10 +96,10 @@ class NearbyConnectionManager(
         advertisingJob?.cancel()
         advertisingJob = coroutineScope {
             launch(Dispatchers.IO) {
-                Log.d("NearbyConnectionManager", "startAdvertising")
+                Log.d(TAG, "startAdvertising")
                 connectionsClient
                     .startAdvertising(
-                        deviceNameProvider.getDeviceName(),
+                        localPreferencesProvider.preferences.value.userProfile.displayName,
                         BASE_SERVICE_ID,
                         connectionLifecycleCallback,
                         AdvertisingOptions.Builder()
@@ -119,5 +129,6 @@ class NearbyConnectionManager(
     companion object {
         private val STRATEGY = Strategy.P2P_CLUSTER
         private const val BASE_SERVICE_ID = "fr.outadoc.pictochat"
+        private const val TAG = "NearbyConnectionManager"
     }
 }
