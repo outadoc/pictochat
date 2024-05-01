@@ -2,6 +2,49 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Required for Nearby Connections -->
+
+    <uses-permission
+        android:name="android.permission.ACCESS_WIFI_STATE"
+        android:maxSdkVersion="31" />
+
+    <uses-permission
+        android:name="android.permission.CHANGE_WIFI_STATE"
+        android:maxSdkVersion="31" />
+
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+
+    <uses-permission
+        android:name="android.permission.ACCESS_COARSE_LOCATION"
+        android:maxSdkVersion="28" />
+
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="31"
+        android:minSdkVersion="29" />
+
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADVERTISE"
+        android:minSdkVersion="31" />
+
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_CONNECT"
+        android:minSdkVersion="31" />
+
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:minSdkVersion="31" />
+
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:minSdkVersion="32" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -12,14 +55,14 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PictoChat"
         tools:targetApi="31">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:theme="@style/Theme.PictoChat">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
