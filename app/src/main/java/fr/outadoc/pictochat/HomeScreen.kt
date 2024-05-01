@@ -2,6 +2,8 @@ package fr.outadoc.pictochat
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import org.koin.compose.koinInject
@@ -19,6 +21,11 @@ fun HomeScreen() {
             viewModel.start()
         }
 
-        RoomListScreen()
+        val state by viewModel.state.collectAsState()
+
+        RoomListScreen(
+            rooms = state.rooms,
+            onRoomSelected = viewModel::onRoomSelected
+        )
     }
 }

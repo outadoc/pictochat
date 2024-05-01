@@ -1,4 +1,4 @@
-package fr.outadoc.pictochat
+package fr.outadoc.pictochat.data
 
 import android.content.Context
 import android.util.Log
@@ -12,6 +12,8 @@ import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo
 import com.google.android.gms.nearby.connection.DiscoveryOptions
 import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback
 import com.google.android.gms.nearby.connection.Strategy
+import fr.outadoc.pictochat.DeviceNameProvider
+import fr.outadoc.pictochat.domain.ConnectionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -19,33 +21,28 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import java.io.Closeable
 
-interface NearbyConnectionManager : Closeable {
-    suspend fun start()
-}
-
-sealed interface NearbyConnectionState {
-    data object Idle : NearbyConnectionState
-}
-
-class NearbyConnectionManagerImpl(
+class NearbyConnectionManager(
     applicationContext: Context,
     private val deviceNameProvider: DeviceNameProvider,
-) : NearbyConnectionManager {
+) : ConnectionManager {
 
     private var connectionsClient: ConnectionsClient =
         Nearby.getConnectionsClient(applicationContext)
 
-    private var _state: MutableStateFlow<NearbyConnectionState> =
-        MutableStateFlow(NearbyConnectionState.Idle)
-    val state = _state.asStateFlow()
+    private var _state: MutableStateFlow<ConnectionManager.State> =
+        MutableStateFlow(ConnectionManager.State.Idle)
+    override val state = _state.asStateFlow()
 
-    private var job: Job? = null
+    private var discoveryJob: Job? = null
+    private var advertisingJob: Job? = null
 
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
-            Log.d("NearbyConnectionManager", "onConnectionInitiated: $endpointId, ${connectionInfo.endpointName}")
+            Log.d(
+                "NearbyConnectionManager",
+                "onConnectionInitiated: $endpointId, ${connectionInfo.endpointName}"
+            )
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
@@ -67,26 +64,14 @@ class NearbyConnectionManagerImpl(
         }
     }
 
-    override suspend fun start() {
-        job?.cancel()
-        job = coroutineScope {
+    override suspend fun startDiscovery() {
+        discoveryJob?.cancel()
+        discoveryJob = coroutineScope {
             launch(Dispatchers.IO) {
-                connectionsClient
-                    .startAdvertising(
-                        deviceNameProvider.getDeviceName(),
-                        SERVICE_ID,
-                        connectionLifecycleCallback,
-                        AdvertisingOptions.Builder()
-                            .setStrategy(STRATEGY)
-                            .build()
-                    )
-                    .await()
-            }
-
-            launch {
+                Log.d("NearbyConnectionManager", "startDiscovery")
                 connectionsClient
                     .startDiscovery(
-                        SERVICE_ID,
+                        BASE_SERVICE_ID,
                         endpointDiscoveryCallback,
                         DiscoveryOptions.Builder()
                             .setStrategy(STRATEGY)
@@ -97,13 +82,42 @@ class NearbyConnectionManagerImpl(
         }
     }
 
-    override fun close() {
-        connectionsClient.stopAdvertising()
+    override suspend fun startAdvertising() {
+        advertisingJob?.cancel()
+        advertisingJob = coroutineScope {
+            launch(Dispatchers.IO) {
+                Log.d("NearbyConnectionManager", "startAdvertising")
+                connectionsClient
+                    .startAdvertising(
+                        deviceNameProvider.getDeviceName(),
+                        BASE_SERVICE_ID,
+                        connectionLifecycleCallback,
+                        AdvertisingOptions.Builder()
+                            .setStrategy(STRATEGY)
+                            .build()
+                    )
+                    .await()
+            }
+        }
+    }
+
+    override fun stopDiscovery() {
         connectionsClient.stopDiscovery()
+        discoveryJob?.cancel()
+    }
+
+    override fun stopAdvertising() {
+        connectionsClient.stopAdvertising()
+        advertisingJob?.cancel()
+    }
+
+    override fun close() {
+        stopDiscovery()
+        stopAdvertising()
     }
 
     companion object {
-        private const val SERVICE_ID = "fr.outadoc.pictochat"
         private val STRATEGY = Strategy.P2P_CLUSTER
+        private const val BASE_SERVICE_ID = "fr.outadoc.pictochat"
     }
 }
