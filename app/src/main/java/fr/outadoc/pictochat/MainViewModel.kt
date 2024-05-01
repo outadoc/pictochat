@@ -25,7 +25,7 @@ class MainViewModel(
 
     fun start() {
         viewModelScope.launch {
-            lobbyManager.startRoomDiscovery()
+            lobbyManager.connect()
         }
     }
 
