@@ -18,6 +18,7 @@ import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
 import fr.outadoc.pictochat.DeviceIdProvider
 import fr.outadoc.pictochat.domain.ConnectionManager
+import fr.outadoc.pictochat.domain.RemoteDevice
 import fr.outadoc.pictochat.protocol.ChatPayload
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -55,9 +56,14 @@ class NearbyConnectionManager(
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
             Log.d(TAG, "onConnectionInitiated: $endpointId, ${connectionInfo.endpointName}")
 
+            val device = RemoteDevice(
+                endpointId = endpointId,
+                deviceId = connectionInfo.endpointName
+            )
+
             _state.update { state ->
-                if (state.connectedEndpoints.containsValue(connectionInfo.endpointName)
-                    || state.connectingEndpoints.containsValue(connectionInfo.endpointName)
+                if (state.connectedEndpoints.contains(device)
+                    || state.connectingEndpoints.contains(device)
                 ) {
                     // We're already connected to the device with that device ID
                     connectionsClient.rejectConnection(endpointId)
@@ -65,10 +71,7 @@ class NearbyConnectionManager(
                 }
 
                 state.copy(
-                    connectingEndpoints = state.connectingEndpoints.put(
-                        endpointId,
-                        connectionInfo.endpointName
-                    )
+                    connectingEndpoints = state.connectingEndpoints.add(device)
                 )
             }
 
@@ -81,12 +84,10 @@ class NearbyConnectionManager(
                 ConnectionsStatusCodes.STATUS_OK -> {
                     Log.d(TAG, "Connection successful")
                     _state.update { state ->
+                        val device = state.connectingEndpoints.first { it.endpointId == endpointId }
                         state.copy(
-                            connectedEndpoints = state.connectedEndpoints.put(
-                                endpointId,
-                                state.connectingEndpoints[endpointId]!!
-                            ),
-                            connectingEndpoints = state.connectingEndpoints.remove(endpointId)
+                            connectedEndpoints = state.connectedEndpoints.add(device),
+                            connectingEndpoints = state.connectingEndpoints.remove(device)
                         )
                     }
                 }
@@ -95,8 +96,8 @@ class NearbyConnectionManager(
                     Log.d(TAG, "Connection rejected")
                     _state.update { state ->
                         state.copy(
-                            connectedEndpoints = state.connectedEndpoints.remove(endpointId),
-                            connectingEndpoints = state.connectingEndpoints.remove(endpointId)
+                            connectedEndpoints = state.connectedEndpoints.removeAll { it.endpointId == endpointId },
+                            connectingEndpoints = state.connectingEndpoints.removeAll { it.endpointId == endpointId }
                         )
                     }
                 }
@@ -105,8 +106,8 @@ class NearbyConnectionManager(
                     Log.d(TAG, "Connection error")
                     _state.update { state ->
                         state.copy(
-                            connectedEndpoints = state.connectedEndpoints.remove(endpointId),
-                            connectingEndpoints = state.connectingEndpoints.remove(endpointId)
+                            connectedEndpoints = state.connectedEndpoints.removeAll { it.endpointId == endpointId },
+                            connectingEndpoints = state.connectingEndpoints.removeAll { it.endpointId == endpointId }
                         )
                     }
                 }
@@ -118,8 +119,8 @@ class NearbyConnectionManager(
 
             _state.update { state ->
                 state.copy(
-                    connectedEndpoints = state.connectedEndpoints.remove(endpointId),
-                    connectingEndpoints = state.connectingEndpoints.remove(endpointId)
+                    connectedEndpoints = state.connectedEndpoints.removeAll { it.endpointId == endpointId },
+                    connectingEndpoints = state.connectingEndpoints.removeAll { it.endpointId == endpointId }
                 )
             }
         }
@@ -129,9 +130,14 @@ class NearbyConnectionManager(
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
             Log.d(TAG, "onEndpointFound: $endpointId, ${info.endpointName}")
 
+            val device = RemoteDevice(
+                endpointId = endpointId,
+                deviceId = info.endpointName
+            )
+
             val state = _state.value
-            if (state.connectedEndpoints.containsValue(info.endpointName)
-                || state.connectingEndpoints.containsValue(info.endpointName)
+            if (state.connectedEndpoints.contains(device)
+                || state.connectingEndpoints.contains(device)
             ) {
                 // We're already connected to the device with that device ID
                 return
@@ -149,8 +155,8 @@ class NearbyConnectionManager(
 
             _state.update { state ->
                 state.copy(
-                    connectedEndpoints = state.connectedEndpoints.remove(endpointId),
-                    connectingEndpoints = state.connectingEndpoints.remove(endpointId)
+                    connectedEndpoints = state.connectedEndpoints.removeAll { it.endpointId == endpointId },
+                    connectingEndpoints = state.connectingEndpoints.removeAll { it.endpointId == endpointId }
                 )
             }
         }
@@ -163,7 +169,7 @@ class NearbyConnectionManager(
             Log.d(TAG, "onPayloadReceived: $endpointId, payload: $proto")
             _payloadFlow.tryEmit(
                 ReceivedPayload(
-                    senderEndpointId = endpointId,
+                    sender = _state.value.connectedEndpoints.first { it.endpointId == endpointId },
                     data = proto
                 )
             )

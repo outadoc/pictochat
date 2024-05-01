@@ -38,9 +38,9 @@ class NearbyLobbyManager(
             state.copy(joinedRoomId = room.id)
         }
 
-        connectionState.connectedEndpoints.keys.forEach { endpointId ->
+        connectionState.connectedEndpoints.forEach { device ->
             connectionManager.sendPayload(
-                endpointId = endpointId,
+                endpointId = device.endpointId,
                 payload = ChatPayload.Status(
                     displayName = prefs.userProfile.displayName,
                     displayColor = prefs.userProfile.displayColor,
@@ -58,9 +58,9 @@ class NearbyLobbyManager(
             state.copy(joinedRoomId = null)
         }
 
-        connectionState.connectedEndpoints.keys.forEach { client ->
+        connectionState.connectedEndpoints.forEach { device ->
             connectionManager.sendPayload(
-                endpointId = client,
+                endpointId = device.endpointId,
                 payload = ChatPayload.Status(
                     displayName = prefs.userProfile.displayName,
                     displayColor = prefs.userProfile.displayColor,
@@ -77,9 +77,9 @@ class NearbyLobbyManager(
             "Cannot send message without first joining a room"
         }
 
-        connectionState.connectedEndpoints.keys.forEach { client ->
+        connectionState.connectedEndpoints.forEach { device ->
             connectionManager.sendPayload(
-                endpointId = client,
+                endpointId = device.endpointId,
                 payload = ChatPayload.TextMessage(
                     roomId = currentRoomId,
                     message = message
@@ -107,7 +107,7 @@ class NearbyLobbyManager(
                     state.copy(
                         knownUsers = state.knownUsers
                             .put(
-                                payload.senderEndpointId,
+                                payload.sender.deviceId,
                                 UserProfile(
                                     displayName = payload.data.displayName,
                                     displayColor = payload.data.displayColor
@@ -116,11 +116,11 @@ class NearbyLobbyManager(
                         availableRooms = state.availableRooms.map { room ->
                             if (room.id == payload.data.roomId) {
                                 room.copy(
-                                    connectedEndpointIds = room.connectedEndpointIds.add(payload.senderEndpointId)
+                                    connectedDeviceIds = room.connectedDeviceIds.add(payload.sender.deviceId)
                                 )
                             } else {
                                 room.copy(
-                                    connectedEndpointIds = room.connectedEndpointIds.remove(payload.senderEndpointId)
+                                    connectedDeviceIds = room.connectedDeviceIds.remove(payload.sender.deviceId)
                                 )
                             }
                         }
@@ -131,7 +131,7 @@ class NearbyLobbyManager(
             is ChatPayload.StatusRequest -> {
                 val prefs = localPreferencesProvider.preferences.value
                 connectionManager.sendPayload(
-                    endpointId = payload.senderEndpointId,
+                    endpointId = payload.sender.endpointId,
                     payload = ChatPayload.Status(
                         displayName = prefs.userProfile.displayName,
                         displayColor = prefs.userProfile.displayColor,

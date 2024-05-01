@@ -35,7 +35,7 @@ fun RoomListScreen(
                     modifier = Modifier.clickable { onRoomSelected(room) },
                     headlineContent = { Text(room.displayName) },
                     supportingContent = {
-                        Text("${room.connectedEndpointIds.size} participants")
+                        Text("${room.connectedDeviceIds.size} participants")
                     }
                 )
             }
