@@ -16,12 +16,14 @@ class MainViewModel(
 
     data class State(
         val rooms: List<Room> = emptyList(),
+        val joinedRoomId: Int? = null,
     )
 
     val state = lobbyManager.state
         .map { state ->
             State(
                 rooms = state.rooms,
+                joinedRoomId = state.joinedRoomId
             )
         }
         .stateIn(
@@ -39,6 +41,18 @@ class MainViewModel(
     fun onRoomSelected(room: Room) {
         viewModelScope.launch(Dispatchers.IO) {
             lobbyManager.join(room)
+        }
+    }
+
+    fun onLeaveRoom() {
+        viewModelScope.launch(Dispatchers.IO) {
+            lobbyManager.leaveCurrentRoom()
+        }
+    }
+
+    fun onSendMessage(message: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            lobbyManager.sendMessage(message)
         }
     }
 
