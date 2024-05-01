@@ -41,9 +41,9 @@ class NearbyLobbyManager(
                 state.copy(joinedRoom = room)
             }
 
-            connectionState.connectedClients.forEach { client ->
+            connectionState.connectedEndpoints.forEach { endpointId ->
                 connectionManager.sendPayload(
-                    endpointId = client.endpointId,
+                    endpointId = endpointId,
                     payload = ChatPayload.Status(
                         displayName = prefs.userProfile.displayName,
                         displayColor = prefs.userProfile.displayColor,
@@ -63,9 +63,9 @@ class NearbyLobbyManager(
                 state.copy(joinedRoom = null)
             }
 
-            connectionState.connectedClients.forEach { client ->
+            connectionState.connectedEndpoints.forEach { client ->
                 connectionManager.sendPayload(
-                    endpointId = client.endpointId,
+                    endpointId = client,
                     payload = ChatPayload.Status(
                         displayName = prefs.userProfile.displayName,
                         displayColor = prefs.userProfile.displayColor,
@@ -73,6 +73,24 @@ class NearbyLobbyManager(
                     )
                 )
             }
+        }
+    }
+
+    override suspend fun sendMessage(message: String) {
+        val connectionState = connectionManager.state.value
+
+        val currentRoom = checkNotNull(state.value.joinedRoom) {
+            "Cannot send message without finirs joining a room"
+        }
+
+        connectionState.connectedEndpoints.forEach { client ->
+            connectionManager.sendPayload(
+                endpointId = client,
+                payload = ChatPayload.TextMessage(
+                    roomId = currentRoom.id,
+                    message = message
+                )
+            )
         }
     }
 

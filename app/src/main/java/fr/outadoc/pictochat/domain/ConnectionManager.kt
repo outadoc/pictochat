@@ -19,6 +19,6 @@ interface ConnectionManager : Closeable {
     fun stopAdvertising()
 
     data class State(
-        val connectedClients: Set<String> = emptySet(),
+        val connectedEndpoints: Set<String> = emptySet(),
     )
 }

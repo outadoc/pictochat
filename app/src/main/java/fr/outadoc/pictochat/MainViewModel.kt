@@ -4,8 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import fr.outadoc.pictochat.domain.LobbyManager
 import fr.outadoc.pictochat.domain.Room
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class MainViewModel(
@@ -13,15 +14,22 @@ class MainViewModel(
 ) : ViewModel() {
 
     data class State(
-        val rooms: List<Room>,
+        val rooms: List<Room> = emptyList(),
+        val joinedRoom: Room? = null,
     )
 
-    private val _state = MutableStateFlow(
-        State(
-            rooms = lobbyManager.rooms
+    val state = lobbyManager.state
+        .map { state ->
+            State(
+                rooms = state.availableRooms,
+                joinedRoom = state.joinedRoom
+            )
+        }
+        .stateIn(
+            viewModelScope,
+            started = SharingStarted.WhileSubscribed(),
+            initialValue = State()
         )
-    )
-    val state = _state.asStateFlow()
 
     fun start() {
         viewModelScope.launch {

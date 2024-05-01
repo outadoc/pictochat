@@ -27,7 +27,7 @@ class MainActivity : ComponentActivity() {
                             single<Context> { applicationContext }
                             single<DeviceNameProvider> { AndroidDeviceNameProvider(get()) }
                             single<ConnectionManager> { NearbyConnectionManager(get(), get()) }
-                            single<LobbyManager> { NearbyLobbyManager(get()) }
+                            single<LobbyManager> { NearbyLobbyManager(get(), get()) }
                             single<LocalPreferencesProvider> {
                                 object : LocalPreferencesProvider {
                                     override val preferences = MutableStateFlow(

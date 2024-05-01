@@ -11,8 +11,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import fr.outadoc.pictochat.domain.Room
 
@@ -33,12 +31,9 @@ fun RoomListScreen(
             modifier = modifier.padding(innerPadding)
         ) {
             items(rooms) { room ->
-                val roomState by room.getRoomState().collectAsState(Room.State.NotConnected())
-
                 ListItem(
                     modifier = Modifier.clickable { onRoomSelected(room) },
                     headlineContent = { Text(room.displayName) },
-                    supportingContent = { Text("Connected clients: ${roomState.connectedClientCount}") },
                 )
             }
         }

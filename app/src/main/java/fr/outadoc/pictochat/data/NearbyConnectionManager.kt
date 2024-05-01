@@ -65,7 +65,7 @@ class NearbyConnectionManager(
                     Log.d(TAG, "Connection successful")
                     _state.update { state ->
                         state.copy(
-                            connectedClients = state.connectedClients + endpointId
+                            connectedEndpoints = state.connectedEndpoints + endpointId
                         )
                     }
                 }
@@ -85,7 +85,7 @@ class NearbyConnectionManager(
 
             _state.update { state ->
                 state.copy(
-                    connectedClients = state.connectedClients - endpointId
+                    connectedEndpoints = state.connectedEndpoints - endpointId
                 )
             }
         }
@@ -107,7 +107,7 @@ class NearbyConnectionManager(
 
             _state.update { state ->
                 state.copy(
-                    connectedClients = state.connectedClients - endpointId
+                    connectedEndpoints = state.connectedEndpoints - endpointId
                 )
             }
         }
