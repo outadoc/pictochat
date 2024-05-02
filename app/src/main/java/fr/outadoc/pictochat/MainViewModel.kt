@@ -1,5 +1,6 @@
 package fr.outadoc.pictochat
 
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import fr.outadoc.pictochat.domain.LobbyManager
@@ -14,16 +15,21 @@ class MainViewModel(
     private val lobbyManager: LobbyManager,
 ) : ViewModel() {
 
+    @Stable
     data class State(
         val rooms: List<Room> = emptyList(),
-        val joinedRoomId: Int? = null,
+        val currentDestination: Route = Route.Home,
     )
 
     val state = lobbyManager.state
         .map { state ->
             State(
                 rooms = state.rooms,
-                joinedRoomId = state.joinedRoomId
+                currentDestination = if (state.joinedRoomId != null) {
+                    Route.Room(state.joinedRoomId)
+                } else {
+                    Route.Home
+                }
             )
         }
         .stateIn(
@@ -32,7 +38,7 @@ class MainViewModel(
             initialValue = State()
         )
 
-    fun start() {
+    fun onStart() {
         viewModelScope.launch(Dispatchers.IO) {
             lobbyManager.connect()
         }
@@ -53,6 +59,12 @@ class MainViewModel(
     fun onSendMessage(message: String) {
         viewModelScope.launch(Dispatchers.IO) {
             lobbyManager.sendMessage(message)
+        }
+    }
+
+    fun onStop() {
+        viewModelScope.launch(Dispatchers.IO) {
+            lobbyManager.close()
         }
     }
 

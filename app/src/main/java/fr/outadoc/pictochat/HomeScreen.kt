@@ -5,9 +5,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import org.koin.compose.koinInject
@@ -21,43 +23,48 @@ fun HomeScreen() {
     PermissionLocked(
         permissionsState
     ) {
-        LaunchedEffect(Unit) {
-            viewModel.start()
+        LifecycleStartEffect(viewModel) {
+            viewModel.onStart()
+            onStopOrDispose {
+                viewModel.onStop()
+            }
         }
 
         val navController = rememberNavController()
         val state by viewModel.state.collectAsState()
 
-        LaunchedEffect(state.joinedRoomId) {
-            if (state.joinedRoomId != null) {
-                navController.navigate("room/${state.joinedRoomId}")
+        LaunchedEffect(state.currentDestination) {
+            navController.navigate(state.currentDestination) {
+                popUpTo(Route.Home) {
+                    inclusive = true
+                }
             }
         }
 
         NavHost(
             navController = navController,
-            startDestination = "home",
+            startDestination = Route.Home,
         ) {
-            composable("home") {
-                LaunchedEffect(Unit) {
-                    viewModel.onLeaveRoom()
-                }
-
+            composable<Route.Home> {
                 RoomListScreen(
                     rooms = state.rooms,
                     onRoomSelected = viewModel::onRoomSelected
                 )
             }
 
-            composable("room/{roomId}") {
+            composable<Route.Room> { backStackEntry ->
+                val route = backStackEntry.toRoute<Route.Room>()
                 val room = remember(state.rooms) {
-                    state.rooms.firstOrNull { it.id == state.joinedRoomId }
+                    state.rooms.firstOrNull { it.id == route.roomId }
                 }
 
                 if (room != null) {
                     RoomScreen(
                         room = room,
-                        onSendMessage = viewModel::onSendMessage
+                        onSendMessage = viewModel::onSendMessage,
+                        onBackPressed = {
+                            viewModel.onLeaveRoom()
+                        }
                     )
                 }
             }
