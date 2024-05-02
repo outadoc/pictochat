@@ -34,9 +34,15 @@ fun MainNavigation() {
         val state by viewModel.state.collectAsState()
 
         LaunchedEffect(state.currentDestination) {
-            navController.navigate(state.currentDestination) {
-                popUpTo(Route.Home) {
-                    inclusive = true
+            when (state.currentDestination) {
+                is Route.Home -> {
+                    navController.popBackStack(Route.Home, inclusive = false)
+                }
+
+                else -> {
+                    navController.navigate(state.currentDestination) {
+                        launchSingleTop = true
+                    }
                 }
             }
         }
