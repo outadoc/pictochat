@@ -19,7 +19,9 @@ import com.google.android.gms.nearby.connection.Strategy
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.RemoteDevice
 import fr.outadoc.pictochat.preferences.DeviceIdProvider
+import fr.outadoc.pictochat.protocol.AdvertisedEndpointInfo
 import fr.outadoc.pictochat.protocol.ChatPayload
+import fr.outadoc.pictochat.protocol.ConnectionRequestEndpointInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -36,6 +38,7 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import java.util.UUID
 
+@OptIn(ExperimentalSerializationApi::class)
 class NearbyConnectionManager(
     applicationContext: Context,
     private val deviceIdProvider: DeviceIdProvider,
@@ -57,36 +60,32 @@ class NearbyConnectionManager(
 
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
-            val device = RemoteDevice(
-                endpointId = endpointId,
-                deviceId = connectionInfo.endpointName
+            val device = RemoteDevice(endpointId = endpointId)
+            val decoded = ProtoBuf.decodeFromByteArray<ConnectionRequestEndpointInfo>(
+                connectionInfo.endpointInfo
             )
 
-            _state.update { state ->
-                if (state.connectedEndpoints.any { it.isSameDevice(device) }) {
-                    // We're already connected to the device with that device ID
-                    Log.d(TAG, "Ignoring connection to $device")
-                    return
-                }
-
-                state.copy(
-                    connectingEndpoints = state.connectingEndpoints.add(device)
+            if (decoded.targetSessionId != sessionId) {
+                Log.d(
+                    TAG,
+                    "Rejected connection to $device; expecting sessionId $sessionId, got ${decoded.targetSessionId}"
                 )
+                connectionsClient.rejectConnection(endpointId)
+                return
             }
 
-            Log.d(TAG, "Accepting connection to $endpointId")
+            Log.d(TAG, "Accepting connection to $endpointId, sessionId: $sessionId")
             connectionsClient.acceptConnection(endpointId, payloadCallback)
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
+            val device = RemoteDevice(endpointId = endpointId)
             when (result.status.statusCode) {
                 ConnectionsStatusCodes.STATUS_OK -> {
                     Log.d(TAG, "Connected successfully to $endpointId")
                     _state.update { state ->
-                        val device = state.connectingEndpoints.first { it.endpointId == endpointId }
                         state.copy(
                             connectedEndpoints = state.connectedEndpoints.add(device),
-                            connectingEndpoints = state.connectingEndpoints.remove(device)
                         )
                     }
                 }
@@ -95,8 +94,7 @@ class NearbyConnectionManager(
                     Log.d(TAG, "Connection rejected for $endpointId")
                     _state.update { state ->
                         state.copy(
-                            connectedEndpoints = state.connectedEndpoints.removeAll { it.endpointId == endpointId },
-                            connectingEndpoints = state.connectingEndpoints.removeAll { it.endpointId == endpointId }
+                            connectedEndpoints = state.connectedEndpoints.remove(device)
                         )
                     }
                 }
@@ -105,8 +103,7 @@ class NearbyConnectionManager(
                     Log.d(TAG, "Connection error for $endpointId")
                     _state.update { state ->
                         state.copy(
-                            connectedEndpoints = state.connectedEndpoints.removeAll { it.endpointId == endpointId },
-                            connectingEndpoints = state.connectingEndpoints.removeAll { it.endpointId == endpointId }
+                            connectedEndpoints = state.connectedEndpoints.remove(device)
                         )
                     }
                 }
@@ -114,12 +111,12 @@ class NearbyConnectionManager(
         }
 
         override fun onDisconnected(endpointId: String) {
-            Log.d(TAG, "onDisconnected: $endpointId")
+            val device = RemoteDevice(endpointId = endpointId)
+            Log.d(TAG, "onDisconnected: $device")
 
             _state.update { state ->
                 state.copy(
-                    connectedEndpoints = state.connectedEndpoints.removeAll { it.endpointId == endpointId },
-                    connectingEndpoints = state.connectingEndpoints.removeAll { it.endpointId == endpointId }
+                    connectedEndpoints = state.connectedEndpoints.remove(device),
                 )
             }
         }
@@ -127,29 +124,15 @@ class NearbyConnectionManager(
 
     private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-            val device = RemoteDevice(
-                endpointId = endpointId,
-                deviceId = info.endpointName
-            )
+            val device = RemoteDevice(endpointId = endpointId)
+            val decoded = ProtoBuf.decodeFromByteArray<AdvertisedEndpointInfo>(info.endpointInfo)
 
-            _state.update { state ->
-                Log.d(TAG, "state is $state")
+            val payload = ConnectionRequestEndpointInfo(decoded.sessionId)
 
-                if (state.isAlreadyKnown(device)) {
-                    // We're already connected to the device with that device ID
-                    Log.d(TAG, "Ignoring endpoint $device")
-                    return
-                }
-
-                state.copy(
-                    connectingEndpoints = state.connectingEndpoints.add(device)
-                )
-            }
-
-            Log.d(TAG, "Requesting connection to $device")
+            Log.d(TAG, "Requesting connection to $device: got $decoded, sending $payload")
 
             connectionsClient.requestConnection(
-                deviceIdProvider.deviceId,
+                ProtoBuf.encodeToByteArray(payload),
                 endpointId,
                 connectionLifecycleCallback
             )
@@ -158,12 +141,6 @@ class NearbyConnectionManager(
         override fun onEndpointLost(endpointId: String) {
             Log.d(TAG, "onEndpointLost: $endpointId")
         }
-
-        // TODO refuser les connexions envoyées au vieux endpoint ID ? possible ??
-        // générer un sessionId en local
-        //advertiser le sessionId
-        //sur remote : quand requestConnection, passer le sessionId reçu dans l'advertisment
-        //quand connectionInitiated : check que le sessionId correspond, sinon reject
     }
 
     @OptIn(ExperimentalSerializationApi::class)
@@ -187,6 +164,8 @@ class NearbyConnectionManager(
     override suspend fun connect() {
         connectionJob?.cancel()
         connectionJob = coroutineScope {
+            Log.d(TAG, "connect: sessionId=$sessionId")
+
             launch(Dispatchers.IO) {
                 Log.d(TAG, "startDiscovery")
                 connectionsClient
@@ -201,10 +180,12 @@ class NearbyConnectionManager(
             }
 
             launch(Dispatchers.IO) {
-                Log.d(TAG, "startAdvertising")
+                val endpointInfo = AdvertisedEndpointInfo(sessionId = sessionId)
+                Log.d(TAG, "startAdvertising: $endpointInfo")
+
                 connectionsClient
                     .startAdvertising(
-                        deviceIdProvider.deviceId,
+                        ProtoBuf.encodeToByteArray(endpointInfo),
                         PICTOCHAT_SERVICE_ID,
                         connectionLifecycleCallback,
                         AdvertisingOptions.Builder()
@@ -234,18 +215,6 @@ class NearbyConnectionManager(
             stopAdvertising()
             stopAllEndpoints()
         }
-    }
-
-    private fun ConnectionManager.State.isAlreadyKnown(device: RemoteDevice): Boolean {
-        return connectedEndpoints.any { it.isSameDevice(device) } ||
-                connectingEndpoints.any { it.isSameDevice(device) }
-    }
-
-    private fun ConnectionManager.State.forgetDevice(device: RemoteDevice): ConnectionManager.State {
-        return copy(
-            connectedEndpoints = connectedEndpoints.removeAll { it.isSameDevice(device) },
-            connectingEndpoints = connectingEndpoints.removeAll { it.isSameDevice(device) }
-        )
     }
 
     companion object {

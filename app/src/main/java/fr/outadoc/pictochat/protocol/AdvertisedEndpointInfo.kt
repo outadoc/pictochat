@@ -8,7 +8,5 @@ import kotlinx.serialization.protobuf.ProtoNumber
 @Serializable
 data class AdvertisedEndpointInfo(
     @ProtoNumber(1)
-    val sourceDeviceId: String,
-    @ProtoNumber(2)
-    val sourceSessionId: String,
+    val sessionId: String,
 )

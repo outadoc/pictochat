@@ -13,7 +13,7 @@ interface LobbyManager : Closeable {
     @Stable
     data class State(
         val rooms: PersistentList<Room>,
-        val knownProfiles: PersistentMap<String, UserProfile> = persistentMapOf(),
+        val knownProfiles: PersistentMap<RemoteDevice, UserProfile> = persistentMapOf(),
         val nearbyUserCount: Int = 0,
         val joinedRoomId: Int? = null,
     )

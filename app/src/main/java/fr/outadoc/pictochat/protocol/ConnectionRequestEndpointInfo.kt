@@ -8,7 +8,5 @@ import kotlinx.serialization.protobuf.ProtoNumber
 @Serializable
 data class ConnectionRequestEndpointInfo(
     @ProtoNumber(1)
-    val sourceDeviceId: String,
-    @ProtoNumber(2)
     val targetSessionId: String,
 )

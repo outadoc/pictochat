@@ -1,10 +1,10 @@
 package fr.outadoc.pictochat.data
 
-import fr.outadoc.pictochat.preferences.LocalPreferencesProvider
-import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
 import fr.outadoc.pictochat.domain.Room
+import fr.outadoc.pictochat.preferences.LocalPreferencesProvider
+import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.protocol.ChatPayload
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
@@ -119,7 +119,7 @@ class NearbyLobbyManager(
                     state.copy(
                         knownProfiles = state.knownProfiles
                             .put(
-                                payload.sender.deviceId,
+                                payload.sender,
                                 UserProfile(
                                     displayName = payload.data.displayName,
                                     displayColor = payload.data.displayColor
@@ -129,11 +129,11 @@ class NearbyLobbyManager(
                             .map { room ->
                                 if (room.id == payload.data.roomId) {
                                     room.copy(
-                                        connectedDeviceIds = room.connectedDeviceIds.add(payload.sender.deviceId)
+                                        connectedDeviceIds = room.connectedDeviceIds.add(payload.sender)
                                     )
                                 } else {
                                     room.copy(
-                                        connectedDeviceIds = room.connectedDeviceIds.remove(payload.sender.deviceId)
+                                        connectedDeviceIds = room.connectedDeviceIds.remove(payload.sender)
                                     )
                                 }
                             }

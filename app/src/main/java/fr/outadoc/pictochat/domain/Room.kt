@@ -6,5 +6,5 @@ import kotlinx.collections.immutable.persistentSetOf
 data class Room(
     val id: Int,
     val displayName: String,
-    val connectedDeviceIds: PersistentSet<String> = persistentSetOf()
+    val connectedDeviceIds: PersistentSet<RemoteDevice> = persistentSetOf()
 )
