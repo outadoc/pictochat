@@ -1,4 +1,4 @@
-package fr.outadoc.pictochat
+package fr.outadoc.pictochat.ui.permissionlock
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

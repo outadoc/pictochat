@@ -1,4 +1,4 @@
-package fr.outadoc.pictochat
+package fr.outadoc.pictochat.ui.room
 
 import androidx.lifecycle.ViewModel
 

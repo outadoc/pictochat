@@ -1,4 +1,4 @@
-package fr.outadoc.pictochat
+package fr.outadoc.pictochat.ui.navigation
 
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel

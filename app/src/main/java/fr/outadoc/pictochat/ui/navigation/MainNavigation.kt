@@ -1,4 +1,4 @@
-package fr.outadoc.pictochat
+package fr.outadoc.pictochat.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -12,6 +12,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import fr.outadoc.pictochat.ui.permissionlock.PermissionLocked
+import fr.outadoc.pictochat.ui.permissionlock.REQUIRED_PERMISSIONS
+import fr.outadoc.pictochat.ui.roomlist.RoomListScreen
+import fr.outadoc.pictochat.ui.room.RoomScreen
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalPermissionsApi::class)

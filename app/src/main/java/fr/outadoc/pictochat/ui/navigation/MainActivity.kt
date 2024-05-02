@@ -1,4 +1,4 @@
-package fr.outadoc.pictochat
+package fr.outadoc.pictochat.ui.navigation
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

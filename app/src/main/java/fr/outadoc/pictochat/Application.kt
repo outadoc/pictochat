@@ -6,6 +6,7 @@ import fr.outadoc.pictochat.data.NearbyConnectionManager
 import fr.outadoc.pictochat.data.NearbyLobbyManager
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
+import fr.outadoc.pictochat.ui.navigation.MainViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.koin.core.context.startKoin
 import org.koin.dsl.module

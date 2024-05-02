@@ -1,4 +1,4 @@
-package fr.outadoc.pictochat
+package fr.outadoc.pictochat.ui.roomlist
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize

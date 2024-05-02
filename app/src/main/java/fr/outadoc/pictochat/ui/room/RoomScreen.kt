@@ -1,4 +1,4 @@
-package fr.outadoc.pictochat
+package fr.outadoc.pictochat.ui.room
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column

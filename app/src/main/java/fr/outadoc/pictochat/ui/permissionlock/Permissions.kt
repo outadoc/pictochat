@@ -1,4 +1,4 @@
-package fr.outadoc.pictochat
+package fr.outadoc.pictochat.ui.permissionlock
 
 import android.Manifest
 import android.os.Build

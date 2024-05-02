@@ -1,4 +1,4 @@
-package fr.outadoc.pictochat
+package fr.outadoc.pictochat.ui.navigation
 
 import kotlinx.serialization.Serializable
 
