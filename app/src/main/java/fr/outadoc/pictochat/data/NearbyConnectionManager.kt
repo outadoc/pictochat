@@ -127,8 +127,6 @@ class NearbyConnectionManager(
 
     private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-            Log.d(TAG, "onEndpointFound: $endpointId, ${info.endpointName}")
-
             val device = RemoteDevice(
                 endpointId = endpointId,
                 deviceId = info.endpointName
@@ -142,6 +140,8 @@ class NearbyConnectionManager(
                 Log.d(TAG, "Ignoring endpoint $device")
                 return
             }
+
+            Log.d(TAG, "Requesting connection to $device")
 
             connectionsClient.requestConnection(
                 deviceIdProvider.deviceId,
