@@ -16,9 +16,9 @@ import com.google.android.gms.nearby.connection.Payload
 import com.google.android.gms.nearby.connection.PayloadCallback
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
-import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.RemoteDevice
+import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.protocol.ChatPayload
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -54,8 +54,6 @@ class NearbyConnectionManager(
 
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
-            Log.d(TAG, "onConnectionInitiated: $endpointId, ${connectionInfo.endpointName}")
-
             val device = RemoteDevice(
                 endpointId = endpointId,
                 deviceId = connectionInfo.endpointName
@@ -66,6 +64,7 @@ class NearbyConnectionManager(
                     || state.connectingEndpoints.contains(device)
                 ) {
                     // We're already connected to the device with that device ID
+                    Log.d(TAG, "Rejecting connection to $endpointId")
                     connectionsClient.rejectConnection(endpointId)
                     return
                 }
@@ -75,6 +74,7 @@ class NearbyConnectionManager(
                 )
             }
 
+            Log.d(TAG, "Accepting connection to $endpointId")
             connectionsClient.acceptConnection(endpointId, payloadCallback)
         }
 
@@ -128,6 +128,20 @@ class NearbyConnectionManager(
     private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
             Log.d(TAG, "onEndpointFound: $endpointId, ${info.endpointName}")
+
+            val device = RemoteDevice(
+                endpointId = endpointId,
+                deviceId = info.endpointName
+            )
+
+            val state = _state.value
+            if (state.connectedEndpoints.contains(device)
+                || state.connectingEndpoints.contains(device)
+            ) {
+                // We're already connected to the device with that device ID
+                Log.d(TAG, "Ignoring endpoint $device")
+                return
+            }
 
             connectionsClient.requestConnection(
                 deviceIdProvider.deviceId,
