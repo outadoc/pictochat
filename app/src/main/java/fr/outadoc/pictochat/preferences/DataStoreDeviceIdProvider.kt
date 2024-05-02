@@ -17,6 +17,7 @@ class DataStoreDeviceIdProvider(
 
     override val deviceId: String
         get() = cachedDeviceId ?: readOrGenerateDeviceId()
+            .also { cachedDeviceId = it }
 
     private fun readOrGenerateDeviceId(): String = runBlocking {
         val deviceId = applicationContext.dataStore.data

@@ -34,6 +34,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
+import java.util.UUID
 
 class NearbyConnectionManager(
     applicationContext: Context,
@@ -43,6 +44,8 @@ class NearbyConnectionManager(
     private var _state: MutableStateFlow<ConnectionManager.State> =
         MutableStateFlow(ConnectionManager.State())
     override val state = _state.asStateFlow()
+
+    private val sessionId = UUID.randomUUID().toString()
 
     private val _payloadFlow = MutableSharedFlow<ReceivedPayload>(extraBufferCapacity = 32)
     override val payloadFlow = _payloadFlow.asSharedFlow()
@@ -60,12 +63,9 @@ class NearbyConnectionManager(
             )
 
             _state.update { state ->
-                if (state.connectedEndpoints.contains(device)
-                    || state.connectingEndpoints.contains(device)
-                ) {
+                if (state.connectedEndpoints.any { it.isSameDevice(device) }) {
                     // We're already connected to the device with that device ID
-                    Log.d(TAG, "Rejecting connection to $endpointId")
-                    connectionsClient.rejectConnection(endpointId)
+                    Log.d(TAG, "Ignoring connection to $device")
                     return
                 }
 
@@ -132,13 +132,18 @@ class NearbyConnectionManager(
                 deviceId = info.endpointName
             )
 
-            val state = _state.value
-            if (state.connectedEndpoints.contains(device)
-                || state.connectingEndpoints.contains(device)
-            ) {
-                // We're already connected to the device with that device ID
-                Log.d(TAG, "Ignoring endpoint $device")
-                return
+            _state.update { state ->
+                Log.d(TAG, "state is $state")
+
+                if (state.isAlreadyKnown(device)) {
+                    // We're already connected to the device with that device ID
+                    Log.d(TAG, "Ignoring endpoint $device")
+                    return
+                }
+
+                state.copy(
+                    connectingEndpoints = state.connectingEndpoints.add(device)
+                )
             }
 
             Log.d(TAG, "Requesting connection to $device")
@@ -153,6 +158,12 @@ class NearbyConnectionManager(
         override fun onEndpointLost(endpointId: String) {
             Log.d(TAG, "onEndpointLost: $endpointId")
         }
+
+        // TODO refuser les connexions envoyées au vieux endpoint ID ? possible ??
+        // générer un sessionId en local
+        //advertiser le sessionId
+        //sur remote : quand requestConnection, passer le sessionId reçu dans l'advertisment
+        //quand connectionInitiated : check que le sessionId correspond, sinon reject
     }
 
     @OptIn(ExperimentalSerializationApi::class)
@@ -223,6 +234,18 @@ class NearbyConnectionManager(
             stopAdvertising()
             stopAllEndpoints()
         }
+    }
+
+    private fun ConnectionManager.State.isAlreadyKnown(device: RemoteDevice): Boolean {
+        return connectedEndpoints.any { it.isSameDevice(device) } ||
+                connectingEndpoints.any { it.isSameDevice(device) }
+    }
+
+    private fun ConnectionManager.State.forgetDevice(device: RemoteDevice): ConnectionManager.State {
+        return copy(
+            connectedEndpoints = connectedEndpoints.removeAll { it.isSameDevice(device) },
+            connectingEndpoints = connectingEndpoints.removeAll { it.isSameDevice(device) }
+        )
     }
 
     companion object {
