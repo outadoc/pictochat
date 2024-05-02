@@ -16,7 +16,7 @@ import org.koin.compose.koinInject
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun HomeScreen() {
+fun MainNavigation() {
     val viewModel = koinInject<MainViewModel>()
     val permissionsState = rememberMultiplePermissionsState(REQUIRED_PERMISSIONS)
 

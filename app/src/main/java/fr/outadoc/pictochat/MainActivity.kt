@@ -15,7 +15,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             KoinContext {
                 PictoChatTheme {
-                    HomeScreen()
+                    MainNavigation()
                 }
             }
         }
