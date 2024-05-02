@@ -16,7 +16,7 @@ import com.google.android.gms.nearby.connection.Payload
 import com.google.android.gms.nearby.connection.PayloadCallback
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
-import fr.outadoc.pictochat.DeviceIdProvider
+import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.RemoteDevice
 import fr.outadoc.pictochat.protocol.ChatPayload

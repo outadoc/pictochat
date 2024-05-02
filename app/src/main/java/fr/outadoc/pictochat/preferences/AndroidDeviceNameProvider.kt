@@ -1,4 +1,4 @@
-package fr.outadoc.pictochat
+package fr.outadoc.pictochat.preferences
 
 import android.Manifest
 import android.bluetooth.BluetoothManager

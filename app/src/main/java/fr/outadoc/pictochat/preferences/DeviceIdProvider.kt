@@ -1,4 +1,4 @@
-package fr.outadoc.pictochat
+package fr.outadoc.pictochat.preferences
 
 interface DeviceIdProvider {
     val deviceId: String

@@ -1,7 +1,7 @@
 package fr.outadoc.pictochat.domain
 
 import androidx.compose.runtime.Stable
-import fr.outadoc.pictochat.UserProfile
+import fr.outadoc.pictochat.preferences.UserProfile
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf

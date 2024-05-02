@@ -1,7 +1,7 @@
 package fr.outadoc.pictochat.data
 
-import fr.outadoc.pictochat.LocalPreferencesProvider
-import fr.outadoc.pictochat.UserProfile
+import fr.outadoc.pictochat.preferences.LocalPreferencesProvider
+import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
 import fr.outadoc.pictochat.domain.Room
