@@ -18,6 +18,7 @@ class MainViewModel(
     @Stable
     data class State(
         val rooms: List<Room> = emptyList(),
+        val nearbyUserCount: Int = 0,
         val currentDestination: Route = Route.Home,
     )
 
@@ -25,6 +26,7 @@ class MainViewModel(
         .map { state ->
             State(
                 rooms = state.rooms,
+                nearbyUserCount = state.nearbyUserCount,
                 currentDestination = if (state.joinedRoomId != null) {
                     Route.Room(state.joinedRoomId)
                 } else {

@@ -6,6 +6,8 @@ import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
 import fr.outadoc.pictochat.domain.Room
 import fr.outadoc.pictochat.protocol.ChatPayload
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +22,7 @@ class NearbyLobbyManager(
     private val _state: MutableStateFlow<LobbyManager.State> =
         MutableStateFlow(
             LobbyManager.State(
-                rooms = listOf(
+                rooms = persistentListOf(
                     Room(id = 0, displayName = "Room A"),
                     Room(id = 1, displayName = "Room B"),
                     Room(id = 2, displayName = "Room C"),
@@ -97,6 +99,16 @@ class NearbyLobbyManager(
                     processPayload(payload)
                 }
             }
+
+            launch {
+                connectionManager.state.collect { connectionState ->
+                    _state.update { state ->
+                        state.copy(
+                            nearbyUserCount = connectionState.connectedEndpoints.size
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -105,7 +117,7 @@ class NearbyLobbyManager(
             is ChatPayload.Status -> {
                 _state.update { state ->
                     state.copy(
-                        knownUsers = state.knownUsers
+                        knownProfiles = state.knownProfiles
                             .put(
                                 payload.sender.deviceId,
                                 UserProfile(
@@ -113,17 +125,19 @@ class NearbyLobbyManager(
                                     displayColor = payload.data.displayColor
                                 )
                             ),
-                        rooms = state.rooms.map { room ->
-                            if (room.id == payload.data.roomId) {
-                                room.copy(
-                                    connectedDeviceIds = room.connectedDeviceIds.add(payload.sender.deviceId)
-                                )
-                            } else {
-                                room.copy(
-                                    connectedDeviceIds = room.connectedDeviceIds.remove(payload.sender.deviceId)
-                                )
+                        rooms = state.rooms
+                            .map { room ->
+                                if (room.id == payload.data.roomId) {
+                                    room.copy(
+                                        connectedDeviceIds = room.connectedDeviceIds.add(payload.sender.deviceId)
+                                    )
+                                } else {
+                                    room.copy(
+                                        connectedDeviceIds = room.connectedDeviceIds.remove(payload.sender.deviceId)
+                                    )
+                                }
                             }
-                        }
+                            .toPersistentList()
                     )
                 }
             }

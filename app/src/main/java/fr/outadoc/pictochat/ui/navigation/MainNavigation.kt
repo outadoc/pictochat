@@ -14,8 +14,8 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import fr.outadoc.pictochat.ui.permissionlock.PermissionLocked
 import fr.outadoc.pictochat.ui.permissionlock.REQUIRED_PERMISSIONS
-import fr.outadoc.pictochat.ui.roomlist.RoomListScreen
 import fr.outadoc.pictochat.ui.room.RoomScreen
+import fr.outadoc.pictochat.ui.roomlist.RoomListScreen
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -57,6 +57,7 @@ fun MainNavigation() {
         ) {
             composable<Route.Home> {
                 RoomListScreen(
+                    nearbyUserCount = state.nearbyUserCount,
                     rooms = state.rooms,
                     onRoomSelected = viewModel::onRoomSelected
                 )

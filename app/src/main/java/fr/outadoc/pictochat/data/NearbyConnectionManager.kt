@@ -79,10 +79,9 @@ class NearbyConnectionManager(
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
-            Log.d(TAG, "onConnectionResult: $endpointId")
             when (result.status.statusCode) {
                 ConnectionsStatusCodes.STATUS_OK -> {
-                    Log.d(TAG, "Connection successful")
+                    Log.d(TAG, "Connected successfully to $endpointId")
                     _state.update { state ->
                         val device = state.connectingEndpoints.first { it.endpointId == endpointId }
                         state.copy(
@@ -93,7 +92,7 @@ class NearbyConnectionManager(
                 }
 
                 ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
-                    Log.d(TAG, "Connection rejected")
+                    Log.d(TAG, "Connection rejected for $endpointId")
                     _state.update { state ->
                         state.copy(
                             connectedEndpoints = state.connectedEndpoints.removeAll { it.endpointId == endpointId },
@@ -103,7 +102,7 @@ class NearbyConnectionManager(
                 }
 
                 ConnectionsStatusCodes.STATUS_ERROR -> {
-                    Log.d(TAG, "Connection error")
+                    Log.d(TAG, "Connection error for $endpointId")
                     _state.update { state ->
                         state.copy(
                             connectedEndpoints = state.connectedEndpoints.removeAll { it.endpointId == endpointId },
