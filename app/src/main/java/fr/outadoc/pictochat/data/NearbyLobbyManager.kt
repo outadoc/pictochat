@@ -94,6 +94,7 @@ class NearbyLobbyManager(
             message = message
         )
 
+        // Send the message to all connected devices
         connectionState.connectedEndpoints.forEach { device ->
             connectionManager.sendPayload(
                 endpointId = device.endpointId,
@@ -101,6 +102,7 @@ class NearbyLobbyManager(
             )
         }
 
+        // Also show the message locally
         processReceivedMessage(
             sender = deviceIdProvider.deviceId,
             payload = payload
@@ -140,6 +142,7 @@ class NearbyLobbyManager(
             is ChatPayload.Status -> {
                 _state.update { state ->
                     state.copy(
+                        // Remember the user's profile
                         knownProfiles = state.knownProfiles
                             .put(
                                 payload.sender.deviceId,
@@ -148,6 +151,7 @@ class NearbyLobbyManager(
                                     displayColor = payload.data.displayColor
                                 )
                             ),
+                        // Update the rooms' connected devices
                         rooms = state.rooms
                             .mapValues { (id, state) ->
                                 when (id.value) {
@@ -174,6 +178,7 @@ class NearbyLobbyManager(
             }
 
             is ChatPayload.StatusRequest -> {
+                // Someone asked for our status, let's send it
                 val prefs = localPreferencesProvider.preferences.value
                 connectionManager.sendPayload(
                     endpointId = payload.sender.endpointId,
@@ -187,6 +192,7 @@ class NearbyLobbyManager(
             }
 
             is ChatPayload.TextMessage -> {
+                // Received a message from someone else, process it
                 processReceivedMessage(
                     sender = payload.sender.deviceId,
                     payload = payload.data
@@ -197,25 +203,28 @@ class NearbyLobbyManager(
 
     private fun processReceivedMessage(sender: DeviceId, payload: ChatPayload.TextMessage) {
         _state.update { state ->
+            val roomId = RoomId(payload.roomId)
+            val roomState = state.rooms[roomId]
+
+            checkNotNull(roomState) {
+                "Received message for unknown room ${payload.roomId}"
+            }
+
             state.copy(
-                rooms = state.rooms
-                    .mapValues { (id, roomState) ->
-                        if (id.value == payload.roomId) {
-                            roomState.copy(
-                                eventHistory = roomState.eventHistory.add(
-                                    ChatEvent.TextMessage(
-                                        id = payload.id,
-                                        timestamp = payload.sentAt,
-                                        sender = sender,
-                                        message = payload.message
-                                    )
-                                )
+                // Add the message to the room's event history
+                rooms = state.rooms.put(
+                    roomId,
+                    roomState.copy(
+                        eventHistory = roomState.eventHistory.add(
+                            ChatEvent.TextMessage(
+                                id = payload.id,
+                                timestamp = payload.sentAt,
+                                sender = sender,
+                                message = payload.message
                             )
-                        } else {
-                            roomState
-                        }
-                    }
-                    .toPersistentMap()
+                        )
+                    )
+                )
             )
         }
     }
