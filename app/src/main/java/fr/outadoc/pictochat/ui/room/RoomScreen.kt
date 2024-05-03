@@ -2,7 +2,6 @@ package fr.outadoc.pictochat.ui.room
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -24,12 +23,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -59,6 +61,7 @@ fun RoomScreen(
     }
 
     val state by viewModel.state.collectAsState()
+    var message by remember { mutableStateOf(TextFieldValue()) }
 
     when (val currentState = state) {
         is RoomViewModel.State.Idle -> {
@@ -71,25 +74,28 @@ fun RoomScreen(
                 title = currentState.title,
                 eventHistory = currentState.eventHistory,
                 knownProfiles = currentState.knownProfiles,
-                currentMessage = currentState.currentMessage,
+                message = message,
+                onMessageChange = { message = it },
                 onBackPressed = onBackPressed,
-                onMessageChanged = viewModel::onMessageChanged,
-                onSendMessage = viewModel::onSendMessage,
+                onSendMessage = {
+                    viewModel.onSendMessage(message.text)
+                    message = TextFieldValue()
+                },
             )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoomScreenContent(
     modifier: Modifier = Modifier,
     title: String,
     eventHistory: ImmutableList<ChatEvent>,
     knownProfiles: ImmutableMap<DeviceId, UserProfile>,
-    currentMessage: String,
     onBackPressed: () -> Unit = {},
-    onMessageChanged: (String) -> Unit = {},
+    message: TextFieldValue,
+    onMessageChange: (TextFieldValue) -> Unit = {},
     onSendMessage: () -> Unit = {},
 ) {
     Scaffold(
@@ -179,8 +185,8 @@ fun RoomScreenContent(
             ) {
                 TextField(
                     modifier = Modifier.weight(1f),
-                    value = currentMessage,
-                    onValueChange = onMessageChanged
+                    value = message,
+                    onValueChange = { onMessageChange(it) },
                 )
 
                 IconButton(onClick = onSendMessage) {
@@ -199,7 +205,7 @@ fun RoomScreenContent(
 fun RoomScreenPreview() {
     RoomScreenContent(
         title = "Room 1",
-        currentMessage = "Hello, world!",
+        message = TextFieldValue("Hello, world!"),
         eventHistory = persistentListOf(
             ChatEvent.Join(
                 id = "1",

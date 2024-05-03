@@ -1,5 +1,6 @@
 package fr.outadoc.pictochat.ui.room
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import fr.outadoc.pictochat.domain.ChatEvent
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapMerge
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -27,7 +29,6 @@ class RoomViewModel(
         data object Idle : State()
         data class InRoom(
             val title: String,
-            val currentMessage: String,
             val eventHistory: ImmutableList<ChatEvent>,
             val knownProfiles: ImmutableMap<DeviceId, UserProfile>,
             val usersInRoom: Int,
@@ -36,7 +37,6 @@ class RoomViewModel(
 
     private data class InternalState(
         val roomId: RoomId? = null,
-        val message: String = "",
     )
 
     private val _internalState = MutableStateFlow(InternalState())
@@ -50,7 +50,6 @@ class RoomViewModel(
                 } else {
                     State.InRoom(
                         title = currentRoom.displayName,
-                        currentMessage = internalState.message,
                         eventHistory = currentRoom.eventHistory,
                         knownProfiles = lobbyState.knownProfiles,
                         usersInRoom = currentRoom.connectedDevices.size + 1
@@ -58,6 +57,7 @@ class RoomViewModel(
                 }
             }
         }
+        .onEach { Log.d("RoomViewModel", "State: $it") }
         .stateIn(
             viewModelScope,
             started = SharingStarted.WhileSubscribed(),
@@ -70,19 +70,9 @@ class RoomViewModel(
         }
     }
 
-    fun onSendMessage() {
-        _internalState.update { state ->
-            viewModelScope.launch(Dispatchers.IO) {
-                lobbyManager.sendMessage(state.message)
-            }
-
-            state.copy(message = "")
-        }
-    }
-
-    fun onMessageChanged(message: String) {
-        _internalState.update { state ->
-            state.copy(message = message)
+    fun onSendMessage(message: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            lobbyManager.sendMessage(message)
         }
     }
 }
