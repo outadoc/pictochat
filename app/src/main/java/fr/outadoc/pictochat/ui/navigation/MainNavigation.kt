@@ -60,6 +60,10 @@ fun MainNavigation() {
                 RoomListScreen(
                     nearbyUserCount = state.nearbyUserCount,
                     roomStates = state.roomStates.values.toImmutableList(),
+                    isOnline = state.isOnline,
+                    onToggleOnline = { online ->
+                        if (online) viewModel.onStart() else viewModel.onStop()
+                    },
                     onRoomSelected = viewModel::onRoomSelected
                 )
             }

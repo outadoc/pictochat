@@ -14,6 +14,7 @@ import fr.outadoc.pictochat.protocol.ChatPayload
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toPersistentMap
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,21 +49,24 @@ class NearbyLobbyManager(
 
     override val state: Flow<LobbyManager.State> =
         combine(
-            connectionManager.state.map { it.connectedEndpoints },
+            connectionManager.state,
             localPreferencesProvider.preferences.map { it.userProfile },
             _state
-        ) { connectedEndpoints, userProfile, internalState ->
+        ) { connectionState, userProfile, internalState ->
             LobbyManager.State(
-                connectedEndpoints = connectedEndpoints,
+                isOnline = connectionState.isOnline,
+                connectedEndpoints = connectionState.connectedEndpoints,
                 userProfile = userProfile,
                 knownProfiles = internalState.knownProfiles
                     .put(deviceIdProvider.deviceId, userProfile),
-                nearbyUserCount = connectedEndpoints.size,
+                nearbyUserCount = connectionState.connectedEndpoints.size,
                 joinedRoomId = internalState.joinedRoomId,
                 rooms = internalState.rooms
             )
         }
             .distinctUntilChanged()
+
+    private var connectionJob: Job? = null
 
     override suspend fun join(roomId: RoomId) {
         check(_state.value.rooms.containsKey(roomId)) {
@@ -110,27 +114,30 @@ class NearbyLobbyManager(
     }
 
     override suspend fun connect() {
+        connectionJob?.cancel()
         coroutineScope {
-            connectionManager.connect()
+            connectionJob = launch {
+                launch { connectionManager.connect() }
 
-            launch {
-                connectionManager.payloadFlow.collect { payload ->
-                    processPayload(payload)
+                launch {
+                    connectionManager.payloadFlow.collect { payload ->
+                        processPayload(payload)
+                    }
                 }
-            }
 
-            launch {
-                state.collect { state ->
-                    state.connectedEndpoints.forEach { endpoint ->
-                        connectionManager.sendPayload(
-                            endpointId = endpoint.endpointId,
-                            payload = ChatPayload.Status(
-                                id = UUID.randomUUID().toString(),
-                                displayName = state.userProfile.displayName,
-                                displayColor = state.userProfile.displayColor,
-                                roomId = state.joinedRoomId?.value
+                launch {
+                    state.collect { state ->
+                        state.connectedEndpoints.forEach { endpoint ->
+                            connectionManager.sendPayload(
+                                endpointId = endpoint.endpointId,
+                                payload = ChatPayload.Status(
+                                    id = UUID.randomUUID().toString(),
+                                    displayName = state.userProfile.displayName,
+                                    displayColor = state.userProfile.displayColor,
+                                    roomId = state.joinedRoomId?.value
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }
@@ -230,6 +237,6 @@ class NearbyLobbyManager(
     }
 
     override fun close() {
-        connectionManager.close()
+        connectionJob?.cancel()
     }
 }

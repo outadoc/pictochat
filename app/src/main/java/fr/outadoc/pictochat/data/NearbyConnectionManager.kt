@@ -24,7 +24,7 @@ import fr.outadoc.pictochat.protocol.ChatPayload
 import fr.outadoc.pictochat.protocol.EndpointInfoPayload
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,8 +52,6 @@ class NearbyConnectionManager(
 
     private val _payloadFlow = MutableSharedFlow<ReceivedPayload>(extraBufferCapacity = 32)
     override val payloadFlow = _payloadFlow.asSharedFlow()
-
-    private var connectionJob: Job? = null
 
     private var connectionsClient: ConnectionsClient =
         Nearby.getConnectionsClient(applicationContext)
@@ -224,40 +222,52 @@ class NearbyConnectionManager(
     }
 
     override suspend fun connect() {
-        connectionJob?.cancel()
-        connectionJob = coroutineScope {
-            Log.d(TAG, "connect: deviceId=${deviceIdProvider.deviceId}")
+        coroutineScope {
+            launch {
+                Log.d(TAG, "connect: deviceId=${deviceIdProvider.deviceId}")
 
-            launch(Dispatchers.IO) {
-                Log.d(TAG, "startDiscovery")
-                connectionsClient
-                    .startDiscovery(
-                        PICTOCHAT_SERVICE_ID,
-                        endpointDiscoveryCallback,
-                        DiscoveryOptions.Builder()
-                            .setStrategy(STRATEGY)
-                            .build()
+                launch(Dispatchers.IO) {
+                    Log.d(TAG, "startDiscovery")
+                    connectionsClient
+                        .startDiscovery(
+                            PICTOCHAT_SERVICE_ID,
+                            endpointDiscoveryCallback,
+                            DiscoveryOptions.Builder()
+                                .setStrategy(STRATEGY)
+                                .build()
+                        )
+                        .await()
+                }
+
+                launch(Dispatchers.IO) {
+                    val endpointInfo = EndpointInfoPayload(
+                        deviceId = deviceIdProvider.deviceId.value
                     )
-                    .await()
-            }
 
-            launch(Dispatchers.IO) {
-                val endpointInfo = EndpointInfoPayload(
-                    deviceId = deviceIdProvider.deviceId.value
-                )
+                    Log.d(TAG, "startAdvertising: $endpointInfo")
 
-                Log.d(TAG, "startAdvertising: $endpointInfo")
+                    connectionsClient
+                        .startAdvertising(
+                            ProtoBuf.encodeToByteArray(endpointInfo),
+                            PICTOCHAT_SERVICE_ID,
+                            connectionLifecycleCallback,
+                            AdvertisingOptions.Builder()
+                                .setStrategy(STRATEGY)
+                                .build()
+                        )
+                        .await()
+                }
 
-                connectionsClient
-                    .startAdvertising(
-                        ProtoBuf.encodeToByteArray(endpointInfo),
-                        PICTOCHAT_SERVICE_ID,
-                        connectionLifecycleCallback,
-                        AdvertisingOptions.Builder()
-                            .setStrategy(STRATEGY)
-                            .build()
-                    )
-                    .await()
+                _state.update { state ->
+                    state.copy(isOnline = true)
+                }
+
+                try {
+                    awaitCancellation()
+                } catch (e: Exception) {
+                    Log.d(TAG, "Connection cancelled")
+                    close()
+                }
             }
         }
     }
@@ -275,10 +285,9 @@ class NearbyConnectionManager(
     override fun close() {
         Log.d(TAG, "Closing all connections")
 
-        connectionJob?.cancel()
-
         _state.updateAndGet { state ->
             state.copy(
+                isOnline = false,
                 connectedEndpoints = persistentSetOf(),
                 approvedEndpoints = persistentSetOf()
             )

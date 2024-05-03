@@ -21,6 +21,7 @@ interface ConnectionManager : Closeable {
      * @property connectedEndpoints Maps endpoint IDs to device IDs.
      */
     data class State(
+        val isOnline: Boolean = false,
         val connectedEndpoints: PersistentSet<RemoteDevice> = persistentSetOf(),
         val approvedEndpoints: PersistentSet<RemoteDevice> = persistentSetOf(),
     )

@@ -13,6 +13,7 @@ interface LobbyManager : Closeable {
 
     @Stable
     data class State(
+        val isOnline: Boolean,
         val userProfile: UserProfile,
         val knownProfiles: PersistentMap<DeviceId, UserProfile> = persistentMapOf(),
         val connectedEndpoints: ImmutableSet<RemoteDevice>,
