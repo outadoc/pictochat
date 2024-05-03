@@ -3,22 +3,25 @@ package fr.outadoc.pictochat.domain
 import androidx.compose.runtime.Stable
 import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.UserProfile
+import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
 import java.io.Closeable
 
 interface LobbyManager : Closeable {
 
     @Stable
     data class State(
-        val rooms: PersistentMap<RoomId, RoomState>,
+        val userProfile: UserProfile,
         val knownProfiles: PersistentMap<DeviceId, UserProfile> = persistentMapOf(),
-        val nearbyUserCount: Int = 0,
-        val joinedRoomId: RoomId? = null,
+        val connectedEndpoints: ImmutableSet<RemoteDevice>,
+        val rooms: PersistentMap<RoomId, RoomState>,
+        val joinedRoomId: RoomId?,
+        val nearbyUserCount: Int,
     )
 
-    val state: StateFlow<State>
+    val state: Flow<State>
 
     suspend fun join(roomId: RoomId)
     suspend fun leaveCurrentRoom()

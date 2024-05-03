@@ -1,18 +1,25 @@
 package fr.outadoc.pictochat.data
 
+import androidx.compose.runtime.Stable
 import fr.outadoc.pictochat.domain.ChatEvent
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
 import fr.outadoc.pictochat.domain.RoomId
 import fr.outadoc.pictochat.domain.RoomState
+import fr.outadoc.pictochat.preferences.DeviceId
+import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.preferences.LocalPreferencesProvider
 import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.protocol.ChatPayload
+import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toPersistentMap
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -21,76 +28,62 @@ import java.util.UUID
 class NearbyLobbyManager(
     private val connectionManager: ConnectionManager,
     private val localPreferencesProvider: LocalPreferencesProvider,
+    private val deviceIdProvider: DeviceIdProvider,
     private val clock: Clock,
 ) : LobbyManager {
 
-    private val _state: MutableStateFlow<LobbyManager.State> =
-        MutableStateFlow(
+    @Stable
+    data class InternalState(
+        val rooms: PersistentMap<RoomId, RoomState> = persistentMapOf(
+            RoomId(0) to RoomState(id = RoomId(0), displayName = "Room A"),
+            RoomId(1) to RoomState(id = RoomId(1), displayName = "Room B"),
+            RoomId(2) to RoomState(id = RoomId(2), displayName = "Room C"),
+            RoomId(3) to RoomState(id = RoomId(3), displayName = "Room D"),
+        ),
+        val knownProfiles: PersistentMap<DeviceId, UserProfile> = persistentMapOf(),
+        val joinedRoomId: RoomId? = null,
+    )
+
+    private val _state: MutableStateFlow<InternalState> = MutableStateFlow(InternalState())
+
+    override val state: Flow<LobbyManager.State> =
+        combine(
+            connectionManager.state.map { it.connectedEndpoints },
+            localPreferencesProvider.preferences.map { it.userProfile },
+            _state
+        ) { connectedEndpoints, userProfile, internalState ->
             LobbyManager.State(
-                rooms = persistentMapOf(
-                    RoomId(0) to RoomState(id = RoomId(0), displayName = "Room A"),
-                    RoomId(1) to RoomState(id = RoomId(1), displayName = "Room B"),
-                    RoomId(2) to RoomState(id = RoomId(2), displayName = "Room C"),
-                    RoomId(3) to RoomState(id = RoomId(3), displayName = "Room D"),
-                )
+                connectedEndpoints = connectedEndpoints,
+                userProfile = userProfile,
+                knownProfiles = internalState.knownProfiles
+                    .put(deviceIdProvider.deviceId, userProfile),
+                nearbyUserCount = connectedEndpoints.size,
+                joinedRoomId = internalState.joinedRoomId,
+                rooms = internalState.rooms
             )
-        )
-    override val state = _state.asStateFlow()
+        }
+            .distinctUntilChanged()
 
     override suspend fun join(roomId: RoomId) {
-        val prefs = localPreferencesProvider.preferences.value
-        val connectionState = connectionManager.state.value
-
-        check(state.value.rooms.containsKey(roomId)) {
+        check(_state.value.rooms.containsKey(roomId)) {
             "Room $roomId does not exist"
         }
 
         _state.update { state ->
             state.copy(joinedRoomId = roomId)
         }
-
-        val payload = ChatPayload.Status(
-            id = UUID.randomUUID().toString(),
-            displayName = prefs.userProfile.displayName,
-            displayColor = prefs.userProfile.displayColor,
-            roomId = roomId.value
-        )
-
-        connectionState.connectedEndpoints.forEach { device ->
-            connectionManager.sendPayload(
-                endpointId = device.endpointId,
-                payload = payload
-            )
-        }
     }
 
     override suspend fun leaveCurrentRoom() {
-        val prefs = localPreferencesProvider.preferences.value
-        val connectionState = connectionManager.state.value
-
         _state.update { state ->
             state.copy(joinedRoomId = null)
-        }
-
-        val payload = ChatPayload.Status(
-            id = UUID.randomUUID().toString(),
-            displayName = prefs.userProfile.displayName,
-            displayColor = prefs.userProfile.displayColor,
-            roomId = null
-        )
-
-        connectionState.connectedEndpoints.forEach { device ->
-            connectionManager.sendPayload(
-                endpointId = device.endpointId,
-                payload = payload
-            )
         }
     }
 
     override suspend fun sendMessage(message: String) {
         val connectionState = connectionManager.state.value
 
-        val currentRoomId = checkNotNull(state.value.joinedRoomId) {
+        val currentRoomId = checkNotNull(_state.value.joinedRoomId) {
             "Cannot send message without first joining a room"
         }
 
@@ -107,6 +100,11 @@ class NearbyLobbyManager(
                 payload = payload
             )
         }
+
+        processReceivedMessage(
+            sender = deviceIdProvider.deviceId,
+            payload = payload
+        )
     }
 
     override suspend fun connect() {
@@ -120,10 +118,16 @@ class NearbyLobbyManager(
             }
 
             launch {
-                connectionManager.state.collect { connectionState ->
-                    _state.update { state ->
-                        state.copy(
-                            nearbyUserCount = connectionState.connectedEndpoints.size
+                state.collect { state ->
+                    state.connectedEndpoints.forEach { endpoint ->
+                        connectionManager.sendPayload(
+                            endpointId = endpoint.endpointId,
+                            payload = ChatPayload.Status(
+                                id = UUID.randomUUID().toString(),
+                                displayName = state.userProfile.displayName,
+                                displayColor = state.userProfile.displayColor,
+                                roomId = state.joinedRoomId?.value
+                            )
                         )
                     }
                 }
@@ -177,35 +181,42 @@ class NearbyLobbyManager(
                         id = UUID.randomUUID().toString(),
                         displayName = prefs.userProfile.displayName,
                         displayColor = prefs.userProfile.displayColor,
-                        roomId = state.value.joinedRoomId?.value
+                        roomId = _state.value.joinedRoomId?.value
                     )
                 )
             }
 
             is ChatPayload.TextMessage -> {
-                _state.update { state ->
-                    state.copy(
-                        rooms = state.rooms
-                            .mapValues { (id, roomState) ->
-                                if (id.value == payload.data.roomId) {
-                                    roomState.copy(
-                                        eventHistory = roomState.eventHistory.add(
-                                            ChatEvent.TextMessage(
-                                                id = payload.data.id,
-                                                timestamp = payload.data.sentAt,
-                                                sender = payload.sender.deviceId,
-                                                message = payload.data.message
-                                            )
-                                        )
-                                    )
-                                } else {
-                                    roomState
-                                }
-                            }
-                            .toPersistentMap()
-                    )
-                }
+                processReceivedMessage(
+                    sender = payload.sender.deviceId,
+                    payload = payload.data
+                )
             }
+        }
+    }
+
+    private fun processReceivedMessage(sender: DeviceId, payload: ChatPayload.TextMessage) {
+        _state.update { state ->
+            state.copy(
+                rooms = state.rooms
+                    .mapValues { (id, roomState) ->
+                        if (id.value == payload.roomId) {
+                            roomState.copy(
+                                eventHistory = roomState.eventHistory.add(
+                                    ChatEvent.TextMessage(
+                                        id = payload.id,
+                                        timestamp = payload.sentAt,
+                                        sender = sender,
+                                        message = payload.message
+                                    )
+                                )
+                            )
+                        } else {
+                            roomState
+                        }
+                    }
+                    .toPersistentMap()
+            )
         }
     }
 

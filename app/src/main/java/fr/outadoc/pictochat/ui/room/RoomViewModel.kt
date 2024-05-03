@@ -30,6 +30,7 @@ class RoomViewModel(
             val currentMessage: String,
             val eventHistory: ImmutableList<ChatEvent>,
             val knownProfiles: ImmutableMap<DeviceId, UserProfile>,
+            val usersInRoom: Int,
         ) : State()
     }
 
@@ -51,7 +52,8 @@ class RoomViewModel(
                         title = currentRoom.displayName,
                         currentMessage = internalState.message,
                         eventHistory = currentRoom.eventHistory,
-                        knownProfiles = lobbyState.knownProfiles
+                        knownProfiles = lobbyState.knownProfiles,
+                        usersInRoom = currentRoom.connectedDevices.size + 1
                     )
                 }
             }
