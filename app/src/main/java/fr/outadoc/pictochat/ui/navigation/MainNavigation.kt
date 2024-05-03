@@ -58,20 +58,20 @@ fun MainNavigation() {
             composable<Route.Home> {
                 RoomListScreen(
                     nearbyUserCount = state.nearbyUserCount,
-                    rooms = state.rooms,
+                    roomStates = state.roomStates,
                     onRoomSelected = viewModel::onRoomSelected
                 )
             }
 
             composable<Route.Room> { backStackEntry ->
                 val route = backStackEntry.toRoute<Route.Room>()
-                val room = remember(state.rooms) {
-                    state.rooms.firstOrNull { it.id == route.roomId }
+                val room = remember(state.roomStates) {
+                    state.roomStates.firstOrNull { it.id == route.roomId }
                 }
 
                 if (room != null) {
                     RoomScreen(
-                        room = room,
+                        roomState = room,
                         onSendMessage = viewModel::onSendMessage,
                         onBackPressed = {
                             viewModel.onLeaveRoom()

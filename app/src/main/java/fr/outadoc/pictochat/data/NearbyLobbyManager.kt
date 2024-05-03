@@ -2,7 +2,7 @@ package fr.outadoc.pictochat.data
 
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
-import fr.outadoc.pictochat.domain.Room
+import fr.outadoc.pictochat.domain.RoomState
 import fr.outadoc.pictochat.preferences.LocalPreferencesProvider
 import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.protocol.ChatPayload
@@ -23,21 +23,25 @@ class NearbyLobbyManager(
         MutableStateFlow(
             LobbyManager.State(
                 rooms = persistentListOf(
-                    Room(id = 0, displayName = "Room A"),
-                    Room(id = 1, displayName = "Room B"),
-                    Room(id = 2, displayName = "Room C"),
-                    Room(id = 3, displayName = "Room D"),
+                    RoomState(id = 0, displayName = "Room A"),
+                    RoomState(id = 1, displayName = "Room B"),
+                    RoomState(id = 2, displayName = "Room C"),
+                    RoomState(id = 3, displayName = "Room D"),
                 )
             )
         )
     override val state = _state.asStateFlow()
 
-    override suspend fun join(room: Room) {
+    override suspend fun join(roomId: Int) {
         val prefs = localPreferencesProvider.preferences.value
         val connectionState = connectionManager.state.value
 
+        check(state.value.rooms.any { it.id == roomId }) {
+            "Room $roomId does not exist"
+        }
+
         _state.update { state ->
-            state.copy(joinedRoomId = room.id)
+            state.copy(joinedRoomId = roomId)
         }
 
         connectionState.connectedEndpoints.forEach { device ->
@@ -46,7 +50,7 @@ class NearbyLobbyManager(
                 payload = ChatPayload.Status(
                     displayName = prefs.userProfile.displayName,
                     displayColor = prefs.userProfile.displayColor,
-                    roomId = room.id
+                    roomId = roomId
                 )
             )
         }
@@ -119,7 +123,7 @@ class NearbyLobbyManager(
                     state.copy(
                         knownProfiles = state.knownProfiles
                             .put(
-                                payload.sender,
+                                payload.sender.deviceId,
                                 UserProfile(
                                     displayName = payload.data.displayName,
                                     displayColor = payload.data.displayColor

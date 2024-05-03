@@ -18,6 +18,7 @@ import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.RemoteDevice
+import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.protocol.ChatPayload
 import fr.outadoc.pictochat.protocol.EndpointInfoPayload
@@ -71,7 +72,7 @@ class NearbyConnectionManager(
 
             val device = RemoteDevice(
                 endpointId = endpointId,
-                deviceId = decoded.deviceId
+                deviceId = DeviceId(decoded.deviceId)
             )
 
             _state.update { state ->
@@ -175,7 +176,7 @@ class NearbyConnectionManager(
 
             val device = RemoteDevice(
                 endpointId = endpointId,
-                deviceId = decoded.deviceId
+                deviceId = DeviceId(decoded.deviceId)
             )
 
             if (_state.value.connectedEndpoints.any { connectedDevice -> connectedDevice.deviceId == device.deviceId }) {
@@ -184,7 +185,7 @@ class NearbyConnectionManager(
             }
 
             val payload = EndpointInfoPayload(
-                deviceId = deviceIdProvider.deviceId,
+                deviceId = deviceIdProvider.deviceId.value,
             )
 
             Log.i(
@@ -242,7 +243,7 @@ class NearbyConnectionManager(
 
             launch(Dispatchers.IO) {
                 val endpointInfo = EndpointInfoPayload(
-                    deviceId = deviceIdProvider.deviceId
+                    deviceId = deviceIdProvider.deviceId.value
                 )
 
                 Log.d(TAG, "startAdvertising: $endpointInfo")

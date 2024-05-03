@@ -13,10 +13,10 @@ class DataStoreDeviceIdProvider(
     private val applicationContext: Context,
 ) : DeviceIdProvider {
 
-    private var cachedDeviceId: String? = null
+    private var cachedDeviceId: DeviceId? = null
 
-    override val deviceId: String
-        get() = cachedDeviceId ?: readOrGenerateDeviceId()
+    override val deviceId: DeviceId
+        get() = cachedDeviceId ?: DeviceId(readOrGenerateDeviceId())
             .also { cachedDeviceId = it }
 
     private fun readOrGenerateDeviceId(): String = runBlocking {

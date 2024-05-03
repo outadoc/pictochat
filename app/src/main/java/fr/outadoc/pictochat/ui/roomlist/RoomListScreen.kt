@@ -15,15 +15,15 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import fr.outadoc.pictochat.domain.Room
+import fr.outadoc.pictochat.domain.RoomState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoomListScreen(
     modifier: Modifier = Modifier,
     nearbyUserCount: Int,
-    rooms: List<Room>,
-    onRoomSelected: (Room) -> Unit,
+    roomStates: List<RoomState>,
+    onRoomSelected: (Int) -> Unit,
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -43,9 +43,9 @@ fun RoomListScreen(
         LazyColumn(
             modifier = modifier.padding(innerPadding)
         ) {
-            items(rooms) { room ->
+            items(roomStates) { room ->
                 ListItem(
-                    modifier = Modifier.clickable { onRoomSelected(room) },
+                    modifier = Modifier.clickable { onRoomSelected(room.id) },
                     headlineContent = { Text(room.displayName) },
                     supportingContent = {
                         Text("${room.connectedDeviceIds.size} participants")

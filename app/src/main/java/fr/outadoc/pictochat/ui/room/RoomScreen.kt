@@ -15,13 +15,13 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import fr.outadoc.pictochat.domain.Room
+import fr.outadoc.pictochat.domain.RoomState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoomScreen(
     modifier: Modifier = Modifier,
-    room: Room,
+    roomState: RoomState,
     onSendMessage: (String) -> Unit,
     onBackPressed: () -> Unit,
 ) {
@@ -30,7 +30,7 @@ fun RoomScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(room.displayName)
+                    Text(roomState.displayName)
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
