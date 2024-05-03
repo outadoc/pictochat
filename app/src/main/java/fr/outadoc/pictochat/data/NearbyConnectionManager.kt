@@ -21,6 +21,7 @@ import fr.outadoc.pictochat.domain.RemoteDevice
 import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.protocol.ChatPayload
 import fr.outadoc.pictochat.protocol.EndpointInfoPayload
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -266,6 +268,13 @@ class NearbyConnectionManager(
 
     override fun close() {
         connectionJob?.cancel()
+
+        _state.updateAndGet { state ->
+            state.copy(
+                connectedEndpoints = persistentSetOf(),
+                approvedEndpoints = persistentSetOf()
+            )
+        }
 
         connectionsClient.apply {
             stopDiscovery()
