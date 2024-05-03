@@ -22,5 +22,6 @@ interface ConnectionManager : Closeable {
      */
     data class State(
         val connectedEndpoints: PersistentSet<RemoteDevice> = persistentSetOf(),
+        val approvedEndpoints: PersistentSet<RemoteDevice> = persistentSetOf(),
     )
 }

@@ -18,7 +18,6 @@ import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.RemoteDevice
-import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.protocol.AdvertisedEndpointInfo
 import fr.outadoc.pictochat.protocol.ChatPayload
 import fr.outadoc.pictochat.protocol.ConnectionRequestEndpointInfo
@@ -33,15 +32,15 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import java.util.UUID
 
-@OptIn(ExperimentalSerializationApi::class)
+@OptIn(ExperimentalSerializationApi::class, ExperimentalStdlibApi::class)
 class NearbyConnectionManager(
     applicationContext: Context,
-    private val deviceIdProvider: DeviceIdProvider,
 ) : ConnectionManager {
 
     private var _state: MutableStateFlow<ConnectionManager.State> =
@@ -61,20 +60,34 @@ class NearbyConnectionManager(
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
             val device = RemoteDevice(endpointId = endpointId)
-            val decoded = ProtoBuf.decodeFromByteArray<ConnectionRequestEndpointInfo>(
-                connectionInfo.endpointInfo
-            )
 
-            if (decoded.targetSessionId != sessionId) {
-                Log.d(
-                    TAG,
-                    "Rejected connection to $device; expecting sessionId $sessionId, got ${decoded.targetSessionId}"
+            Log.d(TAG, "onConnectionInitiated: $endpointId with ${connectionInfo.endpointInfo.toHexString()}")
+
+            val decoded = try {
+                ProtoBuf.decodeFromByteArray<ConnectionRequestEndpointInfo>(
+                    connectionInfo.endpointInfo
                 )
+            } catch (e: SerializationException) {
+                Log.e(TAG, "Failed to parse endpointInfo as ConnectionRequestEndpointInfo", e)
+                try {
+                    val data = ProtoBuf.decodeFromByteArray<AdvertisedEndpointInfo>(connectionInfo.endpointInfo)
+                    Log.d(TAG, "Got AdvertisedEndpointInfo instead of ConnectionRequestEndpointInfo: $data")
+                } catch (e: SerializationException) {
+                    Log.e(TAG, "Failed to parse endpointInfo as AdvertisedEndpointInfo", e)
+                }
+
+                Log.d(TAG, "Rejected connection to $device, could not decode payload")
                 connectionsClient.rejectConnection(endpointId)
                 return
             }
 
-            Log.d(TAG, "Accepting connection to $endpointId, sessionId: $sessionId")
+            if (decoded.targetSessionId != sessionId && decoded.initiatorSessionId != sessionId) {
+                Log.d(TAG, "Rejected connection to $device, got payload $decoded")
+                connectionsClient.rejectConnection(endpointId)
+                return
+            }
+
+            Log.d(TAG, "Accepting connection to $device, got payload $decoded")
             connectionsClient.acceptConnection(endpointId, payloadCallback)
         }
 
@@ -125,11 +138,26 @@ class NearbyConnectionManager(
     private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
             val device = RemoteDevice(endpointId = endpointId)
-            val decoded = ProtoBuf.decodeFromByteArray<AdvertisedEndpointInfo>(info.endpointInfo)
+            val decoded = try {
+                ProtoBuf.decodeFromByteArray<AdvertisedEndpointInfo>(info.endpointInfo)
+            } catch (e: SerializationException) {
+                Log.d(TAG, "Ignoring $device, could not decode payload: ${info.endpointInfo.toHexString()}")
+                return
+            }
 
-            val payload = ConnectionRequestEndpointInfo(decoded.sessionId)
+            if (decoded.sessionId == sessionId) {
+                Log.d(TAG, "Ignoring $device, it's ourselves")
+                return
+            }
 
-            Log.d(TAG, "Requesting connection to $device: got $decoded, sending $payload")
+            val payload = ConnectionRequestEndpointInfo(
+                initiatorSessionId = sessionId,
+                targetSessionId = decoded.sessionId
+            )
+
+            val payloadBytes = ProtoBuf.encodeToByteArray(payload)
+
+            Log.d(TAG, "Requesting connection to $device: got $decoded, sending $payload as ${payloadBytes.toHexString()}")
 
             connectionsClient.requestConnection(
                 ProtoBuf.encodeToByteArray(payload),
@@ -181,11 +209,12 @@ class NearbyConnectionManager(
 
             launch(Dispatchers.IO) {
                 val endpointInfo = AdvertisedEndpointInfo(sessionId = sessionId)
-                Log.d(TAG, "startAdvertising: $endpointInfo")
+                val payload = ProtoBuf.encodeToByteArray(endpointInfo)
+                Log.d(TAG, "startAdvertising: $endpointInfo as ${payload.toHexString()}")
 
                 connectionsClient
                     .startAdvertising(
-                        ProtoBuf.encodeToByteArray(endpointInfo),
+                        payload,
                         PICTOCHAT_SERVICE_ID,
                         connectionLifecycleCallback,
                         AdvertisingOptions.Builder()

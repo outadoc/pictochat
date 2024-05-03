@@ -31,7 +31,7 @@ class Application : Application() {
         single<Context> { applicationContext }
         single<DeviceNameProvider> { AndroidDeviceNameProvider(get()) }
         single<DeviceIdProvider> { DataStoreDeviceIdProvider(get()) }
-        single<ConnectionManager> { NearbyConnectionManager(get(), get()) }
+        single<ConnectionManager> { NearbyConnectionManager(get()) }
         single<LobbyManager> { NearbyLobbyManager(get(), get()) }
         single<LocalPreferencesProvider> {
             object : LocalPreferencesProvider {
