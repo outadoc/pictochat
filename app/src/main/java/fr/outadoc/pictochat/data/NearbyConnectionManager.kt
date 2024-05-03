@@ -80,12 +80,17 @@ class NearbyConnectionManager(
                 }
 
                 if (connectedDevice != null) {
-                    Log.d(TAG, "Rejecting connection to $device, already known as $connectedDevice")
-                    connectionsClient.rejectConnection(endpointId)
-                    return@update state
+                    Log.w(
+                        TAG,
+                        "$device is already known as $connectedDevice, closing existing connection"
+                    )
+                    connectionsClient.disconnectFromEndpoint(connectedDevice.endpointId)
                 }
 
                 state.copy(
+                    connectedEndpoints = connectedDevice?.let {
+                        state.connectedEndpoints.remove(connectedDevice)
+                    } ?: state.connectedEndpoints,
                     approvedEndpoints = state.approvedEndpoints.add(device)
                 )
             }
@@ -267,6 +272,8 @@ class NearbyConnectionManager(
     }
 
     override fun close() {
+        Log.d(TAG, "Closing all connections")
+
         connectionJob?.cancel()
 
         _state.updateAndGet { state ->

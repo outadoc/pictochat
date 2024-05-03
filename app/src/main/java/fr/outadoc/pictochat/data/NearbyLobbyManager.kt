@@ -164,4 +164,3 @@ class NearbyLobbyManager(
         connectionManager.close()
     }
 }
-
