@@ -46,11 +46,14 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.PictoChat"
+        android:appCategory="social"
+        android:resizeableActivity="true"
         tools:targetApi="tiramisu">
 
         <activity
             android:name=".ui.navigation.MainActivity"
             android:exported="true"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.PictoChat">
 
             <intent-filter>

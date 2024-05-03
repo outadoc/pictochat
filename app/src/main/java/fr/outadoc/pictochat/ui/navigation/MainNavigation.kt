@@ -66,16 +66,12 @@ fun MainNavigation() {
 
             composable<Route.Room> { backStackEntry ->
                 val route = backStackEntry.toRoute<Route.Room>()
-                val room = state.roomStates[RoomId(route.roomId)]
-
-                if (room != null) {
-                    RoomScreen(
-                        roomState = room,
-                        onBackPressed = {
-                            viewModel.onLeaveRoom()
-                        }
-                    )
-                }
+                RoomScreen(
+                    roomId = RoomId(route.roomId),
+                    onBackPressed = {
+                        viewModel.onLeaveRoom()
+                    }
+                )
             }
         }
     }
