@@ -15,15 +15,17 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import fr.outadoc.pictochat.domain.RoomId
 import fr.outadoc.pictochat.domain.RoomState
+import kotlinx.collections.immutable.ImmutableList
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoomListScreen(
     modifier: Modifier = Modifier,
     nearbyUserCount: Int,
-    roomStates: List<RoomState>,
-    onRoomSelected: (Int) -> Unit,
+    roomStates: ImmutableList<RoomState>,
+    onRoomSelected: (RoomId) -> Unit,
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -48,7 +50,7 @@ fun RoomListScreen(
                     modifier = Modifier.clickable { onRoomSelected(room.id) },
                     headlineContent = { Text(room.displayName) },
                     supportingContent = {
-                        Text("${room.connectedDeviceIds.size} participants")
+                        Text("${room.connectedDevices.size} participants")
                     }
                 )
             }

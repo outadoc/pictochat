@@ -2,12 +2,13 @@ package fr.outadoc.pictochat.data
 
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
+import fr.outadoc.pictochat.domain.RoomId
 import fr.outadoc.pictochat.domain.RoomState
 import fr.outadoc.pictochat.preferences.LocalPreferencesProvider
 import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.protocol.ChatPayload
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.toPersistentList
+import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.toPersistentMap
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,21 +23,21 @@ class NearbyLobbyManager(
     private val _state: MutableStateFlow<LobbyManager.State> =
         MutableStateFlow(
             LobbyManager.State(
-                rooms = persistentListOf(
-                    RoomState(id = 0, displayName = "Room A"),
-                    RoomState(id = 1, displayName = "Room B"),
-                    RoomState(id = 2, displayName = "Room C"),
-                    RoomState(id = 3, displayName = "Room D"),
+                rooms = persistentMapOf(
+                    RoomId(0) to RoomState(id = RoomId(0), displayName = "Room A"),
+                    RoomId(1) to RoomState(id = RoomId(1), displayName = "Room B"),
+                    RoomId(2) to RoomState(id = RoomId(2), displayName = "Room C"),
+                    RoomId(3) to RoomState(id = RoomId(3), displayName = "Room D"),
                 )
             )
         )
     override val state = _state.asStateFlow()
 
-    override suspend fun join(roomId: Int) {
+    override suspend fun join(roomId: RoomId) {
         val prefs = localPreferencesProvider.preferences.value
         val connectionState = connectionManager.state.value
 
-        check(state.value.rooms.any { it.id == roomId }) {
+        check(state.value.rooms.containsKey(roomId)) {
             "Room $roomId does not exist"
         }
 
@@ -50,7 +51,7 @@ class NearbyLobbyManager(
                 payload = ChatPayload.Status(
                     displayName = prefs.userProfile.displayName,
                     displayColor = prefs.userProfile.displayColor,
-                    roomId = roomId
+                    roomId = roomId.value
                 )
             )
         }
@@ -87,7 +88,7 @@ class NearbyLobbyManager(
             connectionManager.sendPayload(
                 endpointId = device.endpointId,
                 payload = ChatPayload.TextMessage(
-                    roomId = currentRoomId,
+                    roomId = currentRoomId.value,
                     message = message
                 )
             )
@@ -130,18 +131,26 @@ class NearbyLobbyManager(
                                 )
                             ),
                         rooms = state.rooms
-                            .map { room ->
-                                if (room.id == payload.data.roomId) {
-                                    room.copy(
-                                        connectedDeviceIds = room.connectedDeviceIds.add(payload.sender)
-                                    )
-                                } else {
-                                    room.copy(
-                                        connectedDeviceIds = room.connectedDeviceIds.remove(payload.sender)
-                                    )
+                            .mapValues { (id, state) ->
+                                when (id.value) {
+                                    payload.data.roomId -> {
+                                        state.copy(
+                                            connectedDevices = state.connectedDevices.add(
+                                                payload.sender.deviceId
+                                            )
+                                        )
+                                    }
+
+                                    else -> {
+                                        state.copy(
+                                            connectedDevices = state.connectedDevices.remove(
+                                                payload.sender.deviceId
+                                            )
+                                        )
+                                    }
                                 }
                             }
-                            .toPersistentList()
+                            .toPersistentMap()
                     )
                 }
             }
@@ -153,7 +162,7 @@ class NearbyLobbyManager(
                     payload = ChatPayload.Status(
                         displayName = prefs.userProfile.displayName,
                         displayColor = prefs.userProfile.displayColor,
-                        roomId = state.value.joinedRoomId
+                        roomId = state.value.joinedRoomId?.value
                     )
                 )
             }

@@ -6,9 +6,19 @@ import kotlinx.datetime.Instant
 sealed class ChatEvent {
     abstract val timestamp: Instant
 
+    data class Join(
+        override val timestamp: Instant,
+        val deviceId: DeviceId,
+    ) : ChatEvent()
+
+    data class Leave(
+        override val timestamp: Instant,
+        val deviceId: DeviceId,
+    ) : ChatEvent()
+
     data class TextMessage(
+        override val timestamp: Instant,
         val sender: DeviceId,
         val message: String,
-        override val timestamp: Instant
     ) : ChatEvent()
 }

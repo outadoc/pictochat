@@ -4,7 +4,10 @@ import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import fr.outadoc.pictochat.domain.LobbyManager
+import fr.outadoc.pictochat.domain.RoomId
 import fr.outadoc.pictochat.domain.RoomState
+import kotlinx.collections.immutable.PersistentMap
+import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
@@ -17,7 +20,7 @@ class MainViewModel(
 
     @Stable
     data class State(
-        val roomStates: List<RoomState> = emptyList(),
+        val roomStates: PersistentMap<RoomId, RoomState> = persistentMapOf(),
         val nearbyUserCount: Int = 0,
         val currentDestination: Route = Route.Home,
     )
@@ -28,7 +31,7 @@ class MainViewModel(
                 roomStates = state.rooms,
                 nearbyUserCount = state.nearbyUserCount,
                 currentDestination = if (state.joinedRoomId != null) {
-                    Route.Room(state.joinedRoomId)
+                    Route.Room(state.joinedRoomId.value)
                 } else {
                     Route.Home
                 }
@@ -46,7 +49,7 @@ class MainViewModel(
         }
     }
 
-    fun onRoomSelected(roomId: Int) {
+    fun onRoomSelected(roomId: RoomId) {
         viewModelScope.launch(Dispatchers.IO) {
             lobbyManager.join(roomId)
         }
