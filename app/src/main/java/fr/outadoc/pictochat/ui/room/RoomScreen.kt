@@ -2,23 +2,17 @@ package fr.outadoc.pictochat.ui.room
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.Badge
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,12 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import fr.outadoc.pictochat.domain.ChatEvent
@@ -90,7 +79,7 @@ fun RoomScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RoomScreenContent(
+private fun RoomScreenContent(
     modifier: Modifier = Modifier,
     title: String,
     eventHistory: ImmutableList<ChatEvent>,
@@ -123,94 +112,27 @@ fun RoomScreenContent(
         }
     ) { insets ->
         Column(modifier = Modifier.padding(insets)) {
-            LazyColumn(
-                modifier = Modifier.weight(1f)
-            ) {
-                items(
-                    eventHistory,
-                    contentType = { event ->
-                        when (event) {
-                            is ChatEvent.Join -> 1
-                            is ChatEvent.Leave -> 2
-                            is ChatEvent.TextMessage -> 3
-                        }
-                    },
-                    key = { event -> event.id }
-                ) { event ->
-                    when (event) {
-                        is ChatEvent.Join -> {
-                            val profile = knownProfiles.getProfile(event.deviceId)
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        "${profile.displayName} joined",
-                                        fontStyle = FontStyle.Italic
-                                    )
-                                },
-                                overlineContent = { Text(event.timestamp.toString()) }
-                            )
-                        }
+            RoomMessages(
+                modifier = Modifier.weight(1f),
+                eventHistory = eventHistory,
+                knownProfiles = knownProfiles
+            )
 
-                        is ChatEvent.Leave -> {
-                            val profile = knownProfiles.getProfile(event.deviceId)
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        "${profile.displayName} left",
-                                        fontStyle = FontStyle.Italic
-                                    )
-                                },
-                                overlineContent = { Text(event.timestamp.toString()) }
-                            )
-                        }
-
-                        is ChatEvent.TextMessage -> {
-                            val profile = knownProfiles.getProfile(event.sender)
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        buildAnnotatedString {
-                                            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                                                append(profile.displayName)
-                                                append(": ")
-                                            }
-                                            append(event.message)
-                                        }
-                                    )
-                                },
-                                overlineContent = { Text(event.timestamp.toString()) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            Row(
+            RoomInput(
                 modifier = Modifier
                     .imePadding()
                     .padding(16.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-            ) {
-                TextField(
-                    modifier = Modifier.weight(1f),
-                    value = message,
-                    onValueChange = { onMessageChange(it) },
-                )
-
-                IconButton(onClick = onSendMessage) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Send message"
-                    )
-                }
-            }
+                message = message,
+                onMessageChange = onMessageChange,
+                onSendMessage = onSendMessage
+            )
         }
     }
 }
 
 @Preview
 @Composable
-fun RoomScreenPreview() {
+private fun RoomScreenPreview() {
     RoomScreenContent(
         title = "Room 1",
         eventHistory = persistentListOf(
@@ -240,14 +162,4 @@ fun RoomScreenPreview() {
         message = TextFieldValue("Hello, world!"),
         usersInRoom = 42
     )
-}
-
-@Composable
-private fun Map<DeviceId, UserProfile>.getProfile(deviceId: DeviceId): UserProfile {
-    return remember(this, deviceId) {
-        get(deviceId) ?: UserProfile(
-            displayName = deviceId.value,
-            displayColor = 0xFF0000
-        )
-    }
 }
