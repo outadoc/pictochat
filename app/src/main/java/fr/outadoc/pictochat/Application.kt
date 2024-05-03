@@ -15,6 +15,7 @@ import fr.outadoc.pictochat.preferences.LocalPreferencesProvider
 import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.ui.navigation.MainViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.datetime.Clock
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 
@@ -29,10 +30,11 @@ class Application : Application() {
 
     private val commonModule = module {
         single<Context> { applicationContext }
+        single<Clock> { Clock.System }
         single<DeviceNameProvider> { AndroidDeviceNameProvider(get()) }
         single<DeviceIdProvider> { DataStoreDeviceIdProvider(get()) }
         single<ConnectionManager> { NearbyConnectionManager(get(), get()) }
-        single<LobbyManager> { NearbyLobbyManager(get(), get()) }
+        single<LobbyManager> { NearbyLobbyManager(get(), get(), get()) }
         single<LocalPreferencesProvider> {
             object : LocalPreferencesProvider {
                 override val preferences = MutableStateFlow(
