@@ -6,9 +6,7 @@ import kotlinx.serialization.protobuf.ProtoNumber
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class ConnectionRequestEndpointInfo(
+data class EndpointInfoPayload(
     @ProtoNumber(1)
-    val initiatorSessionId: String,
-    @ProtoNumber(2)
-    val targetSessionId: String,
+    val deviceId: String,
 )

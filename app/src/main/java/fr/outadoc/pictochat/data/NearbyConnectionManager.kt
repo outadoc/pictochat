@@ -18,9 +18,9 @@ import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.RemoteDevice
-import fr.outadoc.pictochat.protocol.AdvertisedEndpointInfo
+import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.protocol.ChatPayload
-import fr.outadoc.pictochat.protocol.ConnectionRequestEndpointInfo
+import fr.outadoc.pictochat.protocol.EndpointInfoPayload
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -36,18 +36,16 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
-import java.util.UUID
 
 @OptIn(ExperimentalSerializationApi::class, ExperimentalStdlibApi::class)
 class NearbyConnectionManager(
     applicationContext: Context,
+    private val deviceIdProvider: DeviceIdProvider,
 ) : ConnectionManager {
 
     private var _state: MutableStateFlow<ConnectionManager.State> =
         MutableStateFlow(ConnectionManager.State())
     override val state = _state.asStateFlow()
-
-    private val sessionId = UUID.randomUUID().toString()
 
     private val _payloadFlow = MutableSharedFlow<ReceivedPayload>(extraBufferCapacity = 32)
     override val payloadFlow = _payloadFlow.asSharedFlow()
@@ -59,32 +57,35 @@ class NearbyConnectionManager(
 
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
-            val device = RemoteDevice(endpointId = endpointId)
-
-            Log.d(TAG, "onConnectionInitiated: $endpointId with ${connectionInfo.endpointInfo.toHexString()}")
-
             val decoded = try {
-                ProtoBuf.decodeFromByteArray<ConnectionRequestEndpointInfo>(
+                ProtoBuf.decodeFromByteArray<EndpointInfoPayload>(
                     connectionInfo.endpointInfo
                 )
             } catch (e: SerializationException) {
-                Log.e(TAG, "Failed to parse endpointInfo as ConnectionRequestEndpointInfo", e)
-                try {
-                    val data = ProtoBuf.decodeFromByteArray<AdvertisedEndpointInfo>(connectionInfo.endpointInfo)
-                    Log.d(TAG, "Got AdvertisedEndpointInfo instead of ConnectionRequestEndpointInfo: $data")
-                } catch (e: SerializationException) {
-                    Log.e(TAG, "Failed to parse endpointInfo as AdvertisedEndpointInfo", e)
-                }
-
-                Log.d(TAG, "Rejected connection to $device, could not decode payload")
+                Log.d(TAG, "Rejected connection to $endpointId, could not decode payload")
                 connectionsClient.rejectConnection(endpointId)
                 return
             }
 
-            if (decoded.targetSessionId != sessionId && decoded.initiatorSessionId != sessionId) {
-                Log.d(TAG, "Rejected connection to $device, got payload $decoded")
-                connectionsClient.rejectConnection(endpointId)
-                return
+            val device = RemoteDevice(
+                endpointId = endpointId,
+                deviceId = decoded.deviceId
+            )
+
+            _state.update { state ->
+                val connectedDevice = state.connectedEndpoints.firstOrNull { connectedDevice ->
+                    connectedDevice.deviceId == device.deviceId
+                }
+
+                if (connectedDevice != null) {
+                    Log.d(TAG, "Rejecting connection to $device, already known as $connectedDevice")
+                    connectionsClient.rejectConnection(endpointId)
+                    return@update state
+                }
+
+                state.copy(
+                    approvedEndpoints = state.approvedEndpoints.add(device)
+                )
             }
 
             Log.d(TAG, "Accepting connection to $device, got payload $decoded")
@@ -92,44 +93,61 @@ class NearbyConnectionManager(
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
-            val device = RemoteDevice(endpointId = endpointId)
-            when (result.status.statusCode) {
-                ConnectionsStatusCodes.STATUS_OK -> {
-                    Log.d(TAG, "Connected successfully to $endpointId")
-                    _state.update { state ->
+            _state.update { state ->
+                val device = state.approvedEndpoints.firstOrNull { it.endpointId == endpointId }
+
+                if (device == null) {
+                    Log.d(TAG, "Ignoring connection result for unknown endpoint $endpointId")
+                    return@update state
+                }
+
+                when (result.status.statusCode) {
+                    ConnectionsStatusCodes.STATUS_OK -> {
+                        Log.d(TAG, "Connected successfully to $endpointId")
                         state.copy(
                             connectedEndpoints = state.connectedEndpoints.add(device),
+                            approvedEndpoints = state.approvedEndpoints.remove(device)
                         )
                     }
-                }
 
-                ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
-                    Log.d(TAG, "Connection rejected for $endpointId")
-                    _state.update { state ->
+                    ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
+                        Log.d(TAG, "Connection rejected for $endpointId")
                         state.copy(
-                            connectedEndpoints = state.connectedEndpoints.remove(device)
+                            connectedEndpoints = state.connectedEndpoints.remove(device),
+                            approvedEndpoints = state.approvedEndpoints.remove(device)
                         )
                     }
-                }
 
-                ConnectionsStatusCodes.STATUS_ERROR -> {
-                    Log.d(TAG, "Connection error for $endpointId")
-                    _state.update { state ->
+                    ConnectionsStatusCodes.STATUS_ERROR -> {
+                        Log.d(TAG, "Connection error for $endpointId")
                         state.copy(
-                            connectedEndpoints = state.connectedEndpoints.remove(device)
+                            connectedEndpoints = state.connectedEndpoints.remove(device),
+                            approvedEndpoints = state.approvedEndpoints.remove(device)
                         )
+                    }
+
+                    else -> {
+                        Log.d(TAG, "Connection result for $endpointId: ${result.status}")
+                        state
                     }
                 }
             }
         }
 
         override fun onDisconnected(endpointId: String) {
-            val device = RemoteDevice(endpointId = endpointId)
-            Log.d(TAG, "onDisconnected: $device")
-
             _state.update { state ->
+                val device = state.approvedEndpoints.firstOrNull { it.endpointId == endpointId }
+
+                if (device == null) {
+                    Log.d(TAG, "Ignoring connection result for unknown endpoint $endpointId")
+                    return@update state
+                }
+
+                Log.d(TAG, "onDisconnected: $device")
+
                 state.copy(
                     connectedEndpoints = state.connectedEndpoints.remove(device),
+                    approvedEndpoints = state.approvedEndpoints.remove(device)
                 )
             }
         }
@@ -137,27 +155,35 @@ class NearbyConnectionManager(
 
     private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-            val device = RemoteDevice(endpointId = endpointId)
             val decoded = try {
-                ProtoBuf.decodeFromByteArray<AdvertisedEndpointInfo>(info.endpointInfo)
+                ProtoBuf.decodeFromByteArray<EndpointInfoPayload>(info.endpointInfo)
             } catch (e: SerializationException) {
-                Log.d(TAG, "Ignoring $device, could not decode payload: ${info.endpointInfo.toHexString()}")
+                Log.e(
+                    TAG,
+                    "Ignoring $endpointId, could not decode payload: ${info.endpointInfo.toHexString()}",
+                    e
+                )
                 return
             }
 
-            if (decoded.sessionId == sessionId) {
-                Log.d(TAG, "Ignoring $device, it's ourselves")
-                return
-            }
-
-            val payload = ConnectionRequestEndpointInfo(
-                initiatorSessionId = sessionId,
-                targetSessionId = decoded.sessionId
+            val device = RemoteDevice(
+                endpointId = endpointId,
+                deviceId = decoded.deviceId
             )
 
-            val payloadBytes = ProtoBuf.encodeToByteArray(payload)
+            if (_state.value.connectedEndpoints.any { connectedDevice -> connectedDevice.deviceId == device.deviceId }) {
+                Log.w(TAG, "Ignoring $device, already connected")
+                return
+            }
 
-            Log.d(TAG, "Requesting connection to $device: got $decoded, sending $payload as ${payloadBytes.toHexString()}")
+            val payload = EndpointInfoPayload(
+                deviceId = deviceIdProvider.deviceId,
+            )
+
+            Log.i(
+                TAG,
+                "Requesting connection to $device: got $decoded, sending $payload}"
+            )
 
             connectionsClient.requestConnection(
                 ProtoBuf.encodeToByteArray(payload),
@@ -167,7 +193,7 @@ class NearbyConnectionManager(
         }
 
         override fun onEndpointLost(endpointId: String) {
-            Log.d(TAG, "onEndpointLost: $endpointId")
+            Log.w(TAG, "onEndpointLost: $endpointId")
         }
     }
 
@@ -192,7 +218,7 @@ class NearbyConnectionManager(
     override suspend fun connect() {
         connectionJob?.cancel()
         connectionJob = coroutineScope {
-            Log.d(TAG, "connect: sessionId=$sessionId")
+            Log.d(TAG, "connect: deviceId=${deviceIdProvider.deviceId}")
 
             launch(Dispatchers.IO) {
                 Log.d(TAG, "startDiscovery")
@@ -208,13 +234,15 @@ class NearbyConnectionManager(
             }
 
             launch(Dispatchers.IO) {
-                val endpointInfo = AdvertisedEndpointInfo(sessionId = sessionId)
-                val payload = ProtoBuf.encodeToByteArray(endpointInfo)
-                Log.d(TAG, "startAdvertising: $endpointInfo as ${payload.toHexString()}")
+                val endpointInfo = EndpointInfoPayload(
+                    deviceId = deviceIdProvider.deviceId
+                )
+
+                Log.d(TAG, "startAdvertising: $endpointInfo")
 
                 connectionsClient
                     .startAdvertising(
-                        payload,
+                        ProtoBuf.encodeToByteArray(endpointInfo),
                         PICTOCHAT_SERVICE_ID,
                         connectionLifecycleCallback,
                         AdvertisingOptions.Builder()
