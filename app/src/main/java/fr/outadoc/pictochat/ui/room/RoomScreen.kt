@@ -19,6 +19,11 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import fr.outadoc.pictochat.domain.ChatEvent
@@ -27,14 +32,32 @@ import fr.outadoc.pictochat.domain.RoomState
 import fr.outadoc.pictochat.preferences.DeviceId
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.datetime.Instant
+import org.koin.compose.koinInject
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoomScreen(
     modifier: Modifier = Modifier,
     roomState: RoomState,
-    onSendMessage: (String) -> Unit,
     onBackPressed: () -> Unit,
+) {
+    val viewModel = koinInject<RoomViewModel>()
+    RoomScreenContent(
+        modifier = modifier,
+        roomState = roomState,
+        onMessageChanged = viewModel::onMessageChanged,
+        onSendMessage = viewModel::onSendMessage,
+        onBackPressed = onBackPressed
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RoomScreenContent(
+    modifier: Modifier = Modifier,
+    roomState: RoomState,
+    onMessageChanged: (String) -> Unit = {},
+    onSendMessage: () -> Unit = {},
+    onBackPressed: () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier,
@@ -73,20 +96,42 @@ fun RoomScreen(
                     when (event) {
                         is ChatEvent.Join -> {
                             ListItem(
-                                headlineContent = { Text(">>> ${event.deviceId} joined") }
+                                headlineContent = {
+                                    Text(
+                                        "${event.deviceId} joined",
+                                        fontStyle = FontStyle.Italic
+                                    )
+                                },
+                                overlineContent = { Text(event.timestamp.toString()) }
                             )
                         }
 
                         is ChatEvent.Leave -> {
                             ListItem(
-                                headlineContent = { Text(">>> ${event.deviceId} left") }
+                                headlineContent = {
+                                    Text(
+                                        "${event.deviceId} left",
+                                        fontStyle = FontStyle.Italic
+                                    )
+                                },
+                                overlineContent = { Text(event.timestamp.toString()) }
                             )
                         }
 
                         is ChatEvent.TextMessage -> {
                             ListItem(
-                                overlineContent = { Text("${event.sender}") },
-                                headlineContent = { Text(event.message) }
+                                headlineContent = {
+                                    Text(
+                                        buildAnnotatedString {
+                                            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                                append(event.sender.toString())
+                                                append(": ")
+                                            }
+                                            append(event.message)
+                                        }
+                                    )
+                                },
+                                overlineContent = { Text(event.timestamp.toString()) }
                             )
                         }
                     }
@@ -100,9 +145,9 @@ fun RoomScreen(
                 TextField(
                     modifier = Modifier.weight(1f),
                     value = "",
-                    onValueChange = {}
+                    onValueChange = onMessageChanged
                 )
-                IconButton(onClick = { /*TODO*/ }) {
+                IconButton(onClick = onSendMessage) {
                     Icon(
                         Icons.AutoMirrored.Filled.Send,
                         contentDescription = "Send message"
@@ -116,7 +161,7 @@ fun RoomScreen(
 @Preview
 @Composable
 fun RoomScreenPreview() {
-    RoomScreen(
+    RoomScreenContent(
         roomState = RoomState(
             id = RoomId(0),
             displayName = "Room 1",
@@ -138,8 +183,6 @@ fun RoomScreenPreview() {
                     deviceId = DeviceId("1")
                 )
             )
-        ),
-        onSendMessage = {},
-        onBackPressed = {}
+        )
     )
 }

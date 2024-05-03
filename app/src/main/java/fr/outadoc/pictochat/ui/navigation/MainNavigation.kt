@@ -71,7 +71,6 @@ fun MainNavigation() {
                 if (room != null) {
                     RoomScreen(
                         roomState = room,
-                        onSendMessage = viewModel::onSendMessage,
                         onBackPressed = {
                             viewModel.onLeaveRoom()
                         }
