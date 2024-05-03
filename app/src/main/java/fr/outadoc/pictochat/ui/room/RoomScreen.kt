@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material3.Badge
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -74,6 +75,7 @@ fun RoomScreen(
                 title = currentState.title,
                 eventHistory = currentState.eventHistory,
                 knownProfiles = currentState.knownProfiles,
+                usersInRoom = currentState.usersInRoom,
                 message = message,
                 onMessageChange = { message = it },
                 onBackPressed = onBackPressed,
@@ -93,6 +95,7 @@ fun RoomScreenContent(
     title: String,
     eventHistory: ImmutableList<ChatEvent>,
     knownProfiles: ImmutableMap<DeviceId, UserProfile>,
+    usersInRoom: Int,
     onBackPressed: () -> Unit = {},
     message: TextFieldValue,
     onMessageChange: (TextFieldValue) -> Unit = {},
@@ -109,6 +112,11 @@ fun RoomScreenContent(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Go back"
                         )
+                    }
+                },
+                actions = {
+                    Badge(modifier = Modifier.padding(end = 16.dp)) {
+                        Text(usersInRoom.toString())
                     }
                 }
             )
@@ -205,7 +213,6 @@ fun RoomScreenContent(
 fun RoomScreenPreview() {
     RoomScreenContent(
         title = "Room 1",
-        message = TextFieldValue("Hello, world!"),
         eventHistory = persistentListOf(
             ChatEvent.Join(
                 id = "1",
@@ -229,7 +236,9 @@ fun RoomScreenPreview() {
                 displayName = "Alice",
                 displayColor = 0xFF0000
             )
-        )
+        ),
+        message = TextFieldValue("Hello, world!"),
+        usersInRoom = 42
     )
 }
 
