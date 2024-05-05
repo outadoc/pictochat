@@ -74,6 +74,7 @@ class NearbyConnectionManager(
             )
 
             _state.update { state ->
+                Log.d(TAG, "onConnectionInitiated: Current state: $state")
                 val connectedDevice = state.connectedEndpoints.firstOrNull { connectedDevice ->
                     connectedDevice.deviceId == device.deviceId
                 }
@@ -81,7 +82,7 @@ class NearbyConnectionManager(
                 if (connectedDevice != null) {
                     Log.w(
                         TAG,
-                        "$device is already known as $connectedDevice, closing existing connection"
+                        "onConnectionInitiated: $device is already known as $connectedDevice, closing existing connection"
                     )
                     connectionsClient.disconnectFromEndpoint(connectedDevice.endpointId)
                 }
@@ -94,7 +95,7 @@ class NearbyConnectionManager(
                 )
             }
 
-            Log.d(TAG, "Accepting connection to $device, got payload $decoded")
+            Log.d(TAG, "onConnectionInitiated: Accepting connection to $device, got payload $decoded")
             connectionsClient.acceptConnection(endpointId, payloadCallback)
         }
 
