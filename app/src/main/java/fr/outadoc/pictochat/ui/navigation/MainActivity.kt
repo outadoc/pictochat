@@ -21,9 +21,9 @@ class MainActivity : ComponentActivity() {
             KoinContext {
                 val prefsRepository = koinInject<LocalPreferencesRepository>()
                 val userPrefs by prefsRepository.preferences.collectAsState(null)
-                val color = userPrefs?.userProfile?.displayColor?.toColor()
+                val favoriteColor = userPrefs?.userProfile?.displayColor?.toColor()
 
-                PictoChatTheme(favoriteColor = color) {
+                PictoChatTheme(favoriteColor = favoriteColor) {
                     MainNavigation()
                 }
             }

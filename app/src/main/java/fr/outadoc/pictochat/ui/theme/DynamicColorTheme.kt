@@ -48,5 +48,12 @@ fun Scheme.toComposeTheme(): ColorScheme {
         outline = Color(outline),
         outlineVariant = Color(outlineVariant),
         scrim = Color(scrim),
+        surfaceBright = Color(surface),
+        surfaceDim = Color(surface),
+        surfaceContainer = Color(surface),
+        surfaceContainerHigh = Color(surface),
+        surfaceContainerHighest = Color(surface),
+        surfaceContainerLow = Color(surface),
+        surfaceContainerLowest = Color(surface),
     )
 }
