@@ -17,6 +17,7 @@ import fr.outadoc.pictochat.preferences.LocalPreferencesRepository
 import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.ui.navigation.MainViewModel
 import fr.outadoc.pictochat.ui.room.RoomViewModel
+import fr.outadoc.pictochat.ui.settings.SettingsViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.datetime.Clock
 import org.koin.core.context.startKoin
@@ -59,5 +60,6 @@ class Application : Application() {
 
         single { MainViewModel(get()) }
         single { RoomViewModel(get()) }
+        single { SettingsViewModel(get()) }
     }
 }

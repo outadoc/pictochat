@@ -16,6 +16,7 @@ import fr.outadoc.pictochat.ui.permissionlock.PermissionLocked
 import fr.outadoc.pictochat.ui.permissionlock.REQUIRED_PERMISSIONS
 import fr.outadoc.pictochat.ui.room.RoomScreen
 import fr.outadoc.pictochat.ui.roomlist.RoomListScreen
+import fr.outadoc.pictochat.ui.settings.SettingsScreen
 import kotlinx.collections.immutable.toImmutableList
 import org.koin.compose.koinInject
 
@@ -64,7 +65,8 @@ fun MainNavigation() {
                     onToggleOnline = { online ->
                         if (online) viewModel.onStart() else viewModel.onStop()
                     },
-                    onRoomSelected = viewModel::onRoomSelected
+                    onRoomSelected = viewModel::onRoomSelected,
+                    onSettingsSelected = viewModel::onSettingsSelected
                 )
             }
 
@@ -72,9 +74,13 @@ fun MainNavigation() {
                 val route = backStackEntry.toRoute<Route.Room>()
                 RoomScreen(
                     roomId = RoomId(route.roomId),
-                    onBackPressed = {
-                        viewModel.onLeaveRoom()
-                    }
+                    onBackPressed = viewModel::onLeaveRoom
+                )
+            }
+
+            composable<Route.Settings> {
+                SettingsScreen(
+                    onBackPressed = viewModel::onCloseSettings
                 )
             }
         }

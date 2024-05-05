@@ -1,11 +1,54 @@
 package fr.outadoc.pictochat.ui.theme
 
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import fr.outadoc.pictochat.domain.ProfileColor
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+@Composable
+fun ProfileColor.toColor(): Color {
+    return if (MaterialTheme.colorScheme.isLight()) {
+        when (this) {
+            ProfileColor.Color1 -> Color(0xFF61829a)
+            ProfileColor.Color2 -> Color(0xFFba4900)
+            ProfileColor.Color3 -> Color(0xFFfb0018)
+            ProfileColor.Color4 -> Color(0xFFfb8afb)
+            ProfileColor.Color5 -> Color(0xFFfb9200)
+            ProfileColor.Color6 -> Color(0xFFf3e300)
+            ProfileColor.Color7 -> Color(0xFFaafb00)
+            ProfileColor.Color8 -> Color(0xFF00fb00)
+            ProfileColor.Color9 -> Color(0xFF00a238)
+            ProfileColor.Color10 -> Color(0xFF49db8a)
+            ProfileColor.Color11 -> Color(0xFF30baf3)
+            ProfileColor.Color12 -> Color(0xFF0059f3)
+            ProfileColor.Color13 -> Color(0xFF000092)
+            ProfileColor.Color14 -> Color(0xFF8a00d3)
+            ProfileColor.Color15 -> Color(0xFFd300eb)
+            ProfileColor.Color16 -> Color(0xFFfb0092)
+        }
+    } else {
+        when (this) {
+            ProfileColor.Color1 -> Color(0xFF61829a)
+            ProfileColor.Color2 -> Color(0xFFba4900)
+            ProfileColor.Color3 -> Color(0xFFfb0018)
+            ProfileColor.Color4 -> Color(0xFFfb8afb)
+            ProfileColor.Color5 -> Color(0xFFfb9200)
+            ProfileColor.Color6 -> Color(0xFFf3e300)
+            ProfileColor.Color7 -> Color(0xFFaafb00)
+            ProfileColor.Color8 -> Color(0xFF00fb00)
+            ProfileColor.Color9 -> Color(0xFF00a238)
+            ProfileColor.Color10 -> Color(0xFF49db8a)
+            ProfileColor.Color11 -> Color(0xFF30baf3)
+            ProfileColor.Color12 -> Color(0xFF0059f3)
+            ProfileColor.Color13 -> Color(0xFF000092)
+            ProfileColor.Color14 -> Color(0xFF8a00d3)
+            ProfileColor.Color15 -> Color(0xFFd300eb)
+            ProfileColor.Color16 -> Color(0xFFfb0092)
+        }
+    }
+}
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+@Composable
+fun ColorScheme.isLight() = this.background.luminance() > 0.5
