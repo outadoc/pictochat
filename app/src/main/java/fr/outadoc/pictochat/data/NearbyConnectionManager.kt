@@ -5,12 +5,15 @@ import android.util.Log
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions
 import com.google.android.gms.nearby.connection.ConnectionInfo
+import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback
 import com.google.android.gms.nearby.connection.ConnectionResolution
 import com.google.android.gms.nearby.connection.ConnectionsClient
 import com.google.android.gms.nearby.connection.ConnectionsStatusCodes
 import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo
 import com.google.android.gms.nearby.connection.DiscoveryOptions
+import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback
 import com.google.android.gms.nearby.connection.Payload
+import com.google.android.gms.nearby.connection.PayloadCallback
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
 import fr.outadoc.pictochat.domain.ConnectionManager
@@ -20,8 +23,11 @@ import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.protocol.ChatPayload
 import fr.outadoc.pictochat.protocol.EndpointInfoPayload
 import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,64 +59,58 @@ class NearbyConnectionManager(
     private val connectionsClient: ConnectionsClient =
         Nearby.getConnectionsClient(applicationContext)
 
+    private var _connectionScope: CoroutineScope? = null
+
     override suspend fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
-        coroutineScope {
-            val decoded = try {
-                ProtoBuf.decodeFromByteArray<EndpointInfoPayload>(
-                    connectionInfo.endpointInfo
-                )
-            } catch (e: SerializationException) {
-                Log.d(TAG, "Rejected connection to $endpointId, could not decode payload")
-
-                connectionsClient
-                    .rejectConnection(endpointId)
-                    .await()
-
-                return@coroutineScope
-            }
-
-            val device = RemoteDevice(
-                endpointId = endpointId,
-                deviceId = DeviceId(decoded.deviceId)
+        val decoded = try {
+            ProtoBuf.decodeFromByteArray<EndpointInfoPayload>(
+                connectionInfo.endpointInfo
             )
-
-            _state.update { state ->
-                Log.d(TAG, "onConnectionInitiated: Current state: $state")
-                val connectedDevice = state.connectedEndpoints.firstOrNull { connectedDevice ->
-                    connectedDevice.deviceId == device.deviceId
-                }
-
-                if (connectedDevice != null) {
-                    Log.w(
-                        TAG,
-                        "onConnectionInitiated: $device is already known as $connectedDevice, closing existing connection"
-                    )
-                    connectionsClient.disconnectFromEndpoint(connectedDevice.endpointId)
-                }
-
-                state.copy(
-                    connectedEndpoints = connectedDevice?.let {
-                        state.connectedEndpoints.remove(connectedDevice)
-                    } ?: state.connectedEndpoints,
-                    approvedEndpoints = state.approvedEndpoints.add(device)
-                )
-            }
-
-            Log.d(
-                TAG,
-                "onConnectionInitiated: Accepting connection to $device, got payload $decoded"
-            )
+        } catch (e: SerializationException) {
+            Log.d(TAG, "Rejected connection to $endpointId, could not decode payload")
 
             connectionsClient
-                .acceptConnection(
-                    endpointId,
-                    PayloadCallbackDelegate(
-                        scope = this,
-                        delegate = this@NearbyConnectionManager
-                    )
-                )
+                .rejectConnection(endpointId)
                 .await()
+
+            return
         }
+
+        val device = RemoteDevice(
+            endpointId = endpointId,
+            deviceId = DeviceId(decoded.deviceId)
+        )
+
+        _state.update { state ->
+            Log.d(TAG, "onConnectionInitiated: Current state: $state")
+            val connectedDevice = state.connectedEndpoints.firstOrNull { connectedDevice ->
+                connectedDevice.deviceId == device.deviceId
+            }
+
+            if (connectedDevice != null) {
+                Log.w(
+                    TAG,
+                    "onConnectionInitiated: $device is already known as $connectedDevice, closing existing connection"
+                )
+                connectionsClient.disconnectFromEndpoint(connectedDevice.endpointId)
+            }
+
+            state.copy(
+                connectedEndpoints = connectedDevice?.let {
+                    state.connectedEndpoints.remove(connectedDevice)
+                } ?: state.connectedEndpoints,
+                approvedEndpoints = state.approvedEndpoints.add(device)
+            )
+        }
+
+        Log.d(
+            TAG,
+            "onConnectionInitiated: Accepting connection to $device, got payload $decoded"
+        )
+
+        connectionsClient
+            .acceptConnection(endpointId, payloadCallbackDelegate)
+            .await()
     }
 
     override suspend fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
@@ -209,17 +209,13 @@ class NearbyConnectionManager(
                 .requestConnection(
                     ProtoBuf.encodeToByteArray(payload),
                     endpointId,
-                    ConnectionLifecycleCallbackDelegate(
-                        scope = this,
-                        delegate = this@NearbyConnectionManager
-                    )
+                    connectionLifecycleCallbackDelegate
                 )
                 .await()
         }
     }
 
     override suspend fun onEndpointLost(endpointId: String) {
-        Log.w(TAG, "onEndpointLost: $endpointId")
     }
 
     override suspend fun onPayloadReceived(endpointId: String, payload: Payload) {
@@ -237,11 +233,13 @@ class NearbyConnectionManager(
         endpointId: String,
         update: PayloadTransferUpdate,
     ) {
-        Log.d(TAG, "onPayloadTransferUpdate: $endpointId, transfer: ${update.status}")
     }
 
     override suspend fun connect() {
         coroutineScope {
+            _connectionScope?.cancel()
+            _connectionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
             launch {
                 Log.d(TAG, "connect: deviceId=${deviceIdProvider.deviceId}")
 
@@ -250,10 +248,7 @@ class NearbyConnectionManager(
                     connectionsClient
                         .startDiscovery(
                             PICTOCHAT_SERVICE_ID,
-                            EndpointDiscoveryCallbackDelegate(
-                                scope = this,
-                                delegate = this@NearbyConnectionManager
-                            ),
+                            endpointDiscoveryCallbackDelegate,
                             DiscoveryOptions.Builder()
                                 .setStrategy(STRATEGY)
                                 .build()
@@ -272,10 +267,7 @@ class NearbyConnectionManager(
                         .startAdvertising(
                             ProtoBuf.encodeToByteArray(endpointInfo),
                             PICTOCHAT_SERVICE_ID,
-                            ConnectionLifecycleCallbackDelegate(
-                                scope = this,
-                                delegate = this@NearbyConnectionManager
-                            ),
+                            connectionLifecycleCallbackDelegate,
                             AdvertisingOptions.Builder()
                                 .setStrategy(STRATEGY)
                                 .build()
@@ -322,6 +314,66 @@ class NearbyConnectionManager(
             stopDiscovery()
             stopAdvertising()
             stopAllEndpoints()
+        }
+
+        _connectionScope?.cancel()
+    }
+
+    private val endpointDiscoveryCallbackDelegate = object  : EndpointDiscoveryCallback() {
+
+        override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
+            _connectionScope?.launch(Dispatchers.IO) {
+                Log.d("EndpointDiscoveryCallbackDelegate", "onEndpointFound")
+                this@NearbyConnectionManager.onEndpointFound(endpointId, info)
+            }
+        }
+
+        override fun onEndpointLost(endpointId: String) {
+            _connectionScope?.launch(Dispatchers.IO) {
+                Log.d("EndpointDiscoveryCallbackDelegate", "onEndpointLost")
+                this@NearbyConnectionManager.onEndpointLost(endpointId)
+            }
+        }
+    }
+
+    private val connectionLifecycleCallbackDelegate = object  : ConnectionLifecycleCallback() {
+
+        override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
+            _connectionScope?.launch(Dispatchers.IO) {
+                Log.d("ConnectionLifecycleCallbackDelegate", "onConnectionInitiated")
+                this@NearbyConnectionManager.onConnectionInitiated(endpointId, connectionInfo)
+            }
+        }
+
+        override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
+            _connectionScope?.launch(Dispatchers.IO) {
+                Log.d("ConnectionLifecycleCallbackDelegate", "onConnectionResult")
+                this@NearbyConnectionManager.onConnectionResult(endpointId, result)
+            }
+        }
+
+        override fun onDisconnected(endpointId: String) {
+            _connectionScope?.launch(Dispatchers.IO) {
+                Log.d("ConnectionLifecycleCallbackDelegate", "onDisconnected")
+                this@NearbyConnectionManager.onDisconnected(endpointId)
+            }
+        }
+    }
+
+    private val payloadCallbackDelegate = object : PayloadCallback() {
+
+        override fun onPayloadReceived(endpointId: String, payload: Payload) {
+            _connectionScope?.launch(Dispatchers.IO) {
+                Log.d("PayloadCallbackDelegate", "onPayloadReceived")
+                this@NearbyConnectionManager.onPayloadReceived(endpointId, payload)
+            }
+        }
+
+        override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
+            _connectionScope?.launch(Dispatchers.IO) {
+                Log.d("PayloadCallbackDelegate", "onPayloadTransferUpdate")
+                this@NearbyConnectionManager.onPayloadTransferUpdate(endpointId, update)
+            }
         }
     }
 
