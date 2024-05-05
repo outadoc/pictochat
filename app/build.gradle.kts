@@ -80,6 +80,7 @@ dependencies {
     implementation(libs.kotlinx.datetime)
     implementation(libs.kotlinx.immutableCollections)
     implementation(libs.kotlinx.serialization.protobuf)
+    implementation(libs.material.components)
 
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)

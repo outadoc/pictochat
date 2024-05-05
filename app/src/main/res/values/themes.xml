@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.PictoChat" parent="Theme.AppCompat.DayNight" />
+    <style name="Theme.PictoChat" parent="Theme.MaterialComponents.DayNight.NoActionBar" />
 </resources>
