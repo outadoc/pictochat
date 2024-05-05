@@ -21,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
@@ -44,10 +43,41 @@ fun RoomInput(
     onMessageChange: (TextFieldValue) -> Unit,
     onSendMessage: () -> Unit,
 ) {
+    val bitmap =
+        ImageBitmap(
+            width = InputConfig.CanvasSize.width.toInt(),
+            height = InputConfig.CanvasSize.height.toInt(),
+            config = ImageBitmapConfig.Alpha8
+        )
+
+    val drawScope = CanvasDrawScope()
+    val canvas = Canvas(bitmap)
+
+    val lines = remember { mutableStateListOf<Line>() }
+
+    drawScope.draw(
+        density = LocalDensity.current,
+        layoutDirection = LayoutDirection.Ltr,
+        canvas = canvas,
+        size = InputConfig.CanvasSize,
+    ) {
+        lines.forEach { line ->
+            drawLine(
+                color = Color.Black,
+                start = line.start,
+                end = line.end,
+                strokeWidth = 3f,
+                cap = StrokeCap.Round
+            )
+        }
+    }
+
     Column {
         RoomInputCanvas(
             modifier = modifier,
-            contentDescription = "Draw a message"
+            contentDescription = "Draw a message",
+            onLineDrawn = { lines.add(it) },
+            bitmap = bitmap
         )
 
         RoomInputField(
@@ -89,42 +119,9 @@ fun RoomInputField(
 fun RoomInputCanvas(
     modifier: Modifier = Modifier,
     contentDescription: String,
+    onLineDrawn: (Line) -> Unit,
+    bitmap: ImageBitmap,
 ) {
-    // Canvas size on DS: 228 x 80
-    val size = Size(
-        width = 228f,
-        height = 80f
-    )
-
-    val bitmap =
-        ImageBitmap(
-            width = size.width.toInt(),
-            height = size.height.toInt(),
-            config = ImageBitmapConfig.Alpha8
-        )
-
-    val drawScope = CanvasDrawScope()
-    val canvas = Canvas(bitmap)
-
-    val lines = remember { mutableStateListOf<Line>() }
-
-    drawScope.draw(
-        density = LocalDensity.current,
-        layoutDirection = LayoutDirection.Ltr,
-        canvas = canvas,
-        size = size,
-    ) {
-        lines.forEach { line ->
-            drawLine(
-                color = Color.Black,
-                start = line.start,
-                end = line.end,
-                strokeWidth = 3f,
-                cap = StrokeCap.Round
-            )
-        }
-    }
-
     var canvasWidthPx: Float? by remember { mutableStateOf(null) }
 
     Image(
@@ -144,7 +141,7 @@ fun RoomInputCanvas(
 
                     val imageDensity = bitmap.width / width
 
-                    lines.add(
+                    onLineDrawn(
                         Line(
                             // Determines the starting position of the line
                             start = (change.position - dragAmount) * imageDensity,
