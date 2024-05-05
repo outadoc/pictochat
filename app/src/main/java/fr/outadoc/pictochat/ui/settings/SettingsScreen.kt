@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -160,7 +159,6 @@ fun SettingsContent(
                 trailingIcon = {
                     Surface(
                         modifier = Modifier.size(32.dp),
-                        shape = CircleShape,
                         color = preferences.userProfile.displayColor.toColor()
                     ) {}
                 },
@@ -181,7 +179,6 @@ fun SettingsContent(
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Surface(
                                         modifier = Modifier.size(32.dp),
-                                        shape = CircleShape,
                                         color = color.toColor()
                                     ) {
                                         IconButton(onClick = {

@@ -1,10 +1,17 @@
 package fr.outadoc.pictochat.ui.theme
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.unit.dp
 import fr.outadoc.pictochat.domain.ProfileColor
 
 @Composable
@@ -52,3 +59,20 @@ fun ProfileColor.toColor(): Color {
 
 @Composable
 fun ColorScheme.isLight() = this.background.luminance() > 0.5
+
+@PreviewLightDark
+@Composable
+private fun ProfileColorPreview() {
+    PictoChatTheme {
+        Column {
+            ProfileColor.entries.forEach { color ->
+                Surface(color = color.toColor()) {
+                    Text(
+                        modifier = Modifier.padding(4.dp),
+                        text = color.id.toString().padStart(2, '0')
+                    )
+                }
+            }
+        }
+    }
+}
