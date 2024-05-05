@@ -7,12 +7,13 @@ import fr.outadoc.pictochat.data.NearbyConnectionManager
 import fr.outadoc.pictochat.data.NearbyLobbyManager
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
+import fr.outadoc.pictochat.domain.ProfileColor
 import fr.outadoc.pictochat.preferences.AndroidDeviceNameProvider
 import fr.outadoc.pictochat.preferences.DataStoreDeviceIdProvider
 import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.preferences.DeviceNameProvider
 import fr.outadoc.pictochat.preferences.LocalPreferences
-import fr.outadoc.pictochat.preferences.LocalPreferencesProvider
+import fr.outadoc.pictochat.preferences.LocalPreferencesRepository
 import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.ui.navigation.MainViewModel
 import fr.outadoc.pictochat.ui.room.RoomViewModel
@@ -41,16 +42,18 @@ class Application : Application() {
         single<DeviceIdProvider> { DataStoreDeviceIdProvider(get()) }
         single<ConnectionManager> { NearbyConnectionManager(get(), get()) }
         single<LobbyManager> { NearbyLobbyManager(get(), get(), get(), get()) }
-        single<LocalPreferencesProvider> {
-            object : LocalPreferencesProvider {
+        single<LocalPreferencesRepository> {
+            object : LocalPreferencesRepository {
                 override val preferences = MutableStateFlow(
                     LocalPreferences(
                         userProfile = UserProfile(
                             displayName = get<DeviceNameProvider>().getDeviceName(),
-                            displayColor = 0xff0000
+                            displayColor = ProfileColor.Color1
                         )
                     )
                 )
+
+                override suspend fun updatePreferences(updated: LocalPreferences) {}
             }
         }
 

@@ -7,12 +7,13 @@ import fr.outadoc.pictochat.domain.LobbyManager
 import fr.outadoc.pictochat.domain.Message
 import fr.outadoc.pictochat.domain.RoomId
 import fr.outadoc.pictochat.domain.RoomState
+import fr.outadoc.pictochat.domain.ProfileColor
 import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.DeviceIdProvider
-import fr.outadoc.pictochat.preferences.LocalPreferencesProvider
+import fr.outadoc.pictochat.preferences.LocalPreferencesRepository
 import fr.outadoc.pictochat.preferences.UserProfile
-import fr.outadoc.pictochat.protocol.Drawing
 import fr.outadoc.pictochat.protocol.ChatPayload
+import fr.outadoc.pictochat.protocol.Drawing
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toPersistentMap
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -29,8 +31,8 @@ import kotlinx.datetime.Clock
 import java.util.UUID
 
 class NearbyLobbyManager(
+    localPreferencesRepository: LocalPreferencesRepository,
     private val connectionManager: ConnectionManager,
-    private val localPreferencesProvider: LocalPreferencesProvider,
     private val deviceIdProvider: DeviceIdProvider,
     private val clock: Clock,
 ) : LobbyManager {
@@ -52,7 +54,7 @@ class NearbyLobbyManager(
     override val state: Flow<LobbyManager.State> =
         combine(
             connectionManager.state,
-            localPreferencesProvider.preferences.map { it.userProfile },
+            localPreferencesRepository.preferences.map { it.userProfile },
             _state
         ) { connectionState, userProfile, internalState ->
             LobbyManager.State(
@@ -140,7 +142,7 @@ class NearbyLobbyManager(
                                 payload = ChatPayload.Status(
                                     id = UUID.randomUUID().toString(),
                                     displayName = state.userProfile.displayName,
-                                    displayColor = state.userProfile.displayColor,
+                                    displayColorId = state.userProfile.displayColor.id,
                                     roomId = state.joinedRoomId?.value
                                 )
                             )
@@ -162,7 +164,7 @@ class NearbyLobbyManager(
                                 payload.sender.deviceId,
                                 UserProfile(
                                     displayName = payload.data.displayName,
-                                    displayColor = payload.data.displayColor
+                                    displayColor = ProfileColor.fromId(payload.data.displayColorId)
                                 )
                             ),
                         // Update the rooms' connected devices
@@ -193,13 +195,13 @@ class NearbyLobbyManager(
 
             is ChatPayload.StatusRequest -> {
                 // Someone asked for our status, let's send it
-                val prefs = localPreferencesProvider.preferences.value
+                val profile = state.first().userProfile
                 connectionManager.sendPayload(
                     endpointId = payload.sender.endpointId,
                     payload = ChatPayload.Status(
                         id = UUID.randomUUID().toString(),
-                        displayName = prefs.userProfile.displayName,
-                        displayColor = prefs.userProfile.displayColor,
+                        displayName = profile.displayName,
+                        displayColorId = profile.displayColor.id,
                         roomId = _state.value.joinedRoomId?.value
                     )
                 )

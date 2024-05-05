@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.core.graphics.createBitmap
 import fr.outadoc.pictochat.domain.ChatEvent
+import fr.outadoc.pictochat.domain.ProfileColor
 import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.UserProfile
 import kotlinx.collections.immutable.ImmutableList
@@ -126,7 +127,7 @@ private fun Map<DeviceId, UserProfile>.getProfile(deviceId: DeviceId): UserProfi
     return remember(this, deviceId) {
         get(deviceId) ?: UserProfile(
             displayName = deviceId.value,
-            displayColor = 0xFF0000
+            displayColor = ProfileColor.Default
         )
     }
 }

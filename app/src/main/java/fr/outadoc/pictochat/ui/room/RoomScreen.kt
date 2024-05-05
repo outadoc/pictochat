@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import fr.outadoc.pictochat.domain.ChatEvent
+import fr.outadoc.pictochat.domain.ProfileColor
 import fr.outadoc.pictochat.domain.RoomId
 import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.UserProfile
@@ -147,7 +148,7 @@ private fun RoomScreenPreview() {
         knownProfiles = persistentMapOf(
             DeviceId("1") to UserProfile(
                 displayName = "Alice",
-                displayColor = 0xFF0000
+                displayColor = ProfileColor.Color3
             )
         ),
         usersInRoom = 42

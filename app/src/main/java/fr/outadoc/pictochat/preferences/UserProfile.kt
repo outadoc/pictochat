@@ -1,9 +1,8 @@
 package fr.outadoc.pictochat.preferences
 
-import androidx.annotation.ColorInt
+import fr.outadoc.pictochat.domain.ProfileColor
 
 data class UserProfile(
     val displayName: String,
-    @ColorInt
-    val displayColor: Int,
+    val displayColor: ProfileColor,
 )

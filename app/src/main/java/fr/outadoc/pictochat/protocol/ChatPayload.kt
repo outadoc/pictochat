@@ -28,7 +28,7 @@ sealed class ChatPayload {
         @ProtoNumber(2)
         val displayName: String,
         @ProtoNumber(3)
-        val displayColor: Int,
+        val displayColorId: Int,
         @ProtoNumber(4)
         val roomId: Int? = null,
     ) : ChatPayload()
