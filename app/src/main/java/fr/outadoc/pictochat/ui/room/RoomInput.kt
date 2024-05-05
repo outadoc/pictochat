@@ -130,7 +130,7 @@ fun RoomInputCanvas(
     Image(
         modifier = modifier
             .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.onPrimary)
+            .border(1.dp, MaterialTheme.colorScheme.primary)
             .clipToBounds()
             .background(Color.White)
             .onSizeChanged { imageSize ->

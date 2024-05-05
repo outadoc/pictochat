@@ -34,7 +34,7 @@ fun RoomMessages(
                 when (event) {
                     is ChatEvent.Join -> 1
                     is ChatEvent.Leave -> 2
-                    is ChatEvent.TextMessage -> 3
+                    is ChatEvent.Message -> 3
                 }
             },
             key = { event -> event.id }
@@ -66,7 +66,7 @@ fun RoomMessages(
                     )
                 }
 
-                is ChatEvent.TextMessage -> {
+                is ChatEvent.Message -> {
                     val profile = knownProfiles.getProfile(event.sender)
                     ListItem(
                         headlineContent = {

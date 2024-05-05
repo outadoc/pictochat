@@ -141,11 +141,12 @@ private fun RoomScreenPreview() {
                 timestamp = Instant.parse("2021-09-01T12:00:00Z"),
                 deviceId = DeviceId("1")
             ),
-            ChatEvent.TextMessage(
+            ChatEvent.Message(
                 id = "2",
                 timestamp = Instant.parse("2021-09-01T12:03:00Z"),
                 sender = DeviceId("1"),
-                message = "Hello, world!"
+                message = "Hello, world!",
+                bitmap = byteArrayOf()
             ),
             ChatEvent.Leave(
                 id = "3",

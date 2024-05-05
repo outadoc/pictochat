@@ -91,11 +91,12 @@ class NearbyLobbyManager(
             "Cannot send message without first joining a room"
         }
 
-        val payload = ChatPayload.TextMessage(
+        val payload = ChatPayload.Message(
             id = UUID.randomUUID().toString(),
             sentAt = clock.now(),
             roomId = currentRoomId.value,
-            message = message
+            message = message,
+            bitmap = byteArrayOf()
         )
 
         // Send the message to all connected devices
@@ -198,7 +199,7 @@ class NearbyLobbyManager(
                 )
             }
 
-            is ChatPayload.TextMessage -> {
+            is ChatPayload.Message -> {
                 // Received a message from someone else, process it
                 processReceivedMessage(
                     sender = payload.sender.deviceId,
@@ -208,7 +209,7 @@ class NearbyLobbyManager(
         }
     }
 
-    private fun processReceivedMessage(sender: DeviceId, payload: ChatPayload.TextMessage) {
+    private fun processReceivedMessage(sender: DeviceId, payload: ChatPayload.Message) {
         _state.update { state ->
             val roomId = RoomId(payload.roomId)
             val roomState = state.rooms[roomId]
@@ -223,11 +224,12 @@ class NearbyLobbyManager(
                     roomId,
                     roomState.copy(
                         eventHistory = roomState.eventHistory.add(
-                            ChatEvent.TextMessage(
+                            ChatEvent.Message(
                                 id = payload.id,
                                 timestamp = payload.sentAt,
                                 sender = sender,
-                                message = payload.message
+                                message = payload.message,
+                                bitmap = payload.bitmap
                             )
                         )
                     )

@@ -34,8 +34,8 @@ sealed class ChatPayload {
     ) : ChatPayload()
 
     @Serializable
-    @SerialName("message_text")
-    data class TextMessage(
+    @SerialName("message")
+    data class Message(
         @ProtoNumber(1)
         override val id: String,
         @ProtoNumber(2)
@@ -45,5 +45,32 @@ sealed class ChatPayload {
         val sentAt: Instant,
         @ProtoNumber(4)
         val message: String,
-    ) : ChatPayload()
+        @ProtoNumber(5)
+        val bitmap: ByteArray
+    ) : ChatPayload() {
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as Message
+
+            if (id != other.id) return false
+            if (roomId != other.roomId) return false
+            if (sentAt != other.sentAt) return false
+            if (message != other.message) return false
+            if (!bitmap.contentEquals(other.bitmap)) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = id.hashCode()
+            result = 31 * result + roomId
+            result = 31 * result + sentAt.hashCode()
+            result = 31 * result + message.hashCode()
+            result = 31 * result + bitmap.contentHashCode()
+            return result
+        }
+    }
 }
