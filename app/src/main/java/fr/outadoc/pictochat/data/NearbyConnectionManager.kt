@@ -69,9 +69,11 @@ class NearbyConnectionManager(
         } catch (e: SerializationException) {
             Log.d(TAG, "Rejected connection to $endpointId, could not decode payload")
 
-            connectionsClient
-                .rejectConnection(endpointId)
-                .await()
+            retry {
+                connectionsClient
+                    .rejectConnection(endpointId)
+                    .await()
+            }
 
             return
         }
@@ -108,9 +110,11 @@ class NearbyConnectionManager(
             "onConnectionInitiated: Accepting connection to $device, got payload $decoded"
         )
 
-        connectionsClient
-            .acceptConnection(endpointId, payloadCallbackDelegate)
-            .await()
+        retry {
+            connectionsClient
+                .acceptConnection(endpointId, payloadCallbackDelegate)
+                .await()
+        }
     }
 
     override suspend fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
@@ -205,13 +209,15 @@ class NearbyConnectionManager(
                 "Requesting connection to $device: got $decoded, sending $payload}"
             )
 
-            connectionsClient
-                .requestConnection(
-                    ProtoBuf.encodeToByteArray(payload),
-                    endpointId,
-                    connectionLifecycleCallbackDelegate
-                )
-                .await()
+            retry {
+                connectionsClient
+                    .requestConnection(
+                        ProtoBuf.encodeToByteArray(payload),
+                        endpointId,
+                        connectionLifecycleCallbackDelegate
+                    )
+                    .await()
+            }
         }
     }
 
@@ -294,9 +300,11 @@ class NearbyConnectionManager(
         val protoBytes = ProtoBuf.encodeToByteArray(payload)
         Log.d(TAG, "Sending payload to $endpointId: $payload")
 
-        connectionsClient
-            .sendPayload(endpointId, Payload.fromBytes(protoBytes))
-            .await()
+        retry {
+            connectionsClient
+                .sendPayload(endpointId, Payload.fromBytes(protoBytes))
+                .await()
+        }
     }
 
     override fun close() {
@@ -319,7 +327,7 @@ class NearbyConnectionManager(
         _connectionScope?.cancel()
     }
 
-    private val endpointDiscoveryCallbackDelegate = object  : EndpointDiscoveryCallback() {
+    private val endpointDiscoveryCallbackDelegate = object : EndpointDiscoveryCallback() {
 
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
             _connectionScope?.launch(Dispatchers.IO) {
@@ -336,7 +344,7 @@ class NearbyConnectionManager(
         }
     }
 
-    private val connectionLifecycleCallbackDelegate = object  : ConnectionLifecycleCallback() {
+    private val connectionLifecycleCallbackDelegate = object : ConnectionLifecycleCallback() {
 
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
             _connectionScope?.launch(Dispatchers.IO) {
