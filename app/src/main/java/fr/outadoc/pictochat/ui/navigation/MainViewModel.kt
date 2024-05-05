@@ -41,7 +41,7 @@ class MainViewModel(
                 }
             )
         }
-        .onEach { Log.d("MainViewModel", "State: $it")}
+        .onEach { Log.d("MainViewModel", "State: $it") }
         .stateIn(
             viewModelScope,
             started = SharingStarted.WhileSubscribed(),

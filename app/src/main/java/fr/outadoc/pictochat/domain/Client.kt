@@ -4,5 +4,5 @@ import fr.outadoc.pictochat.preferences.UserProfile
 
 data class Client(
     val endpointId: String,
-    val profile: UserProfile
+    val profile: UserProfile,
 )

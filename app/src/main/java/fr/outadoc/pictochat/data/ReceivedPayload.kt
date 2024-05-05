@@ -5,5 +5,5 @@ import fr.outadoc.pictochat.protocol.ChatPayload
 
 data class ReceivedPayload(
     val sender: RemoteDevice,
-    val data: ChatPayload
+    val data: ChatPayload,
 )
