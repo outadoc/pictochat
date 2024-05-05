@@ -44,8 +44,8 @@ sealed class ChatPayload {
         @Serializable(with = InstantIso8601Serializer::class)
         val sentAt: Instant,
         @ProtoNumber(4)
-        val message: String,
+        val text: String,
         @ProtoNumber(5)
-        val bitmap: Canvas,
+        val drawing: Drawing,
     ) : ChatPayload()
 }

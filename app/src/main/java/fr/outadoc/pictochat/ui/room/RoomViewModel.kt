@@ -74,7 +74,7 @@ class RoomViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             lobbyManager.sendMessage(
                 fr.outadoc.pictochat.domain.Message(
-                    message = message.message,
+                    text = message.message,
                     bitmap = message.bitmap,
                     bitmapHeight = message.bitmapHeight,
                     bitmapWidth = message.bitmapWidth

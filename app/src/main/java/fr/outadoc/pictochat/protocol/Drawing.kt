@@ -6,7 +6,7 @@ import kotlinx.serialization.protobuf.ProtoNumber
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class Canvas(
+data class Drawing(
     @ProtoNumber(1)
     val width: Int,
     @ProtoNumber(2)
@@ -18,7 +18,7 @@ data class Canvas(
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as Canvas
+        other as Drawing
 
         if (width != other.width) return false
         if (height != other.height) return false

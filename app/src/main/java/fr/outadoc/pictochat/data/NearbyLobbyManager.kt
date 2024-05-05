@@ -11,7 +11,7 @@ import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.preferences.LocalPreferencesProvider
 import fr.outadoc.pictochat.preferences.UserProfile
-import fr.outadoc.pictochat.protocol.Canvas
+import fr.outadoc.pictochat.protocol.Drawing
 import fr.outadoc.pictochat.protocol.ChatPayload
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
@@ -97,8 +97,8 @@ class NearbyLobbyManager(
             id = UUID.randomUUID().toString(),
             sentAt = clock.now(),
             roomId = currentRoomId.value,
-            message = message.message,
-            bitmap = Canvas(
+            text = message.text,
+            drawing = Drawing(
                 width = message.bitmapWidth,
                 height = message.bitmapHeight,
                 data = message.bitmap
@@ -235,10 +235,10 @@ class NearbyLobbyManager(
                                 timestamp = payload.sentAt,
                                 sender = sender,
                                 message = Message(
-                                    message = payload.message,
-                                    bitmapWidth = payload.bitmap.width,
-                                    bitmapHeight = payload.bitmap.height,
-                                    bitmap = payload.bitmap.data
+                                    text = payload.text,
+                                    bitmapWidth = payload.drawing.width,
+                                    bitmapHeight = payload.drawing.height,
+                                    bitmap = payload.drawing.data
                                 )
                             )
                         )
