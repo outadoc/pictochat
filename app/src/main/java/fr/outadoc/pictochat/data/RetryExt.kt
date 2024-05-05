@@ -7,8 +7,9 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 suspend fun <T> retry(
+    label: String,
     times: Int = 5,
-    initialDelay: Duration = 100.milliseconds,
+    initialDelay: Duration = 500.milliseconds,
     maxDelay: Duration = 1.seconds,
     factor: Double = 2.0,
     block: suspend () -> T,
@@ -18,11 +19,12 @@ suspend fun <T> retry(
         try {
             return block()
         } catch (e: Exception) {
-            Log.e("RetryExt", "Attempt #$attemptNb failed: ${e.message}", e)
+            Log.e("RetryExt", "Attempt #$attemptNb failed for $label: ${e.message}", e)
         }
         delay(currentDelay)
         currentDelay = (currentDelay * factor).coerceAtMost(maxDelay)
     }
 
-    return block() // last attempt
+    // last attempt
+    return block()
 }

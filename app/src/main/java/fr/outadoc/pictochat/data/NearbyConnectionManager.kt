@@ -2,6 +2,7 @@ package fr.outadoc.pictochat.data
 
 import android.content.Context
 import android.util.Log
+import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions
 import com.google.android.gms.nearby.connection.ConnectionInfo
@@ -36,6 +37,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
@@ -53,6 +56,8 @@ class NearbyConnectionManager(
         MutableStateFlow(ConnectionManager.State())
     override val state = _state.asStateFlow()
 
+    private val stateLock = Mutex()
+
     private val _payloadFlow = MutableSharedFlow<ReceivedPayload>(extraBufferCapacity = 32)
     override val payloadFlow = _payloadFlow.asSharedFlow()
 
@@ -69,7 +74,7 @@ class NearbyConnectionManager(
         } catch (e: SerializationException) {
             Log.d(TAG, "Rejected connection to $endpointId, could not decode payload")
 
-            retry {
+            retry(label = "rejectConnection") {
                 connectionsClient
                     .rejectConnection(endpointId)
                     .await()
@@ -83,102 +88,122 @@ class NearbyConnectionManager(
             deviceId = DeviceId(decoded.deviceId)
         )
 
-        _state.update { state ->
-            Log.d(TAG, "onConnectionInitiated: Current state: $state")
-            val connectedDevice = state.connectedEndpoints.firstOrNull { connectedDevice ->
-                connectedDevice.deviceId == device.deviceId
-            }
+        stateLock.withLock {
+            _state.update { state ->
+                Log.d(TAG, "onConnectionInitiated: Current state: $state")
+                val connectedDevice = state.connectedEndpoints.firstOrNull { connectedDevice ->
+                    connectedDevice.deviceId == device.deviceId
+                }
 
-            if (connectedDevice != null) {
-                Log.w(
-                    TAG,
-                    "onConnectionInitiated: $device is already known as $connectedDevice, closing existing connection"
+                if (connectedDevice != null) {
+                    Log.w(
+                        TAG,
+                        "onConnectionInitiated: $device is already known as $connectedDevice, closing existing connection"
+                    )
+                    connectionsClient.disconnectFromEndpoint(connectedDevice.endpointId)
+                }
+
+                state.copy(
+                    connectedEndpoints = connectedDevice?.let {
+                        state.connectedEndpoints.remove(connectedDevice)
+                    } ?: state.connectedEndpoints,
+                    approvedEndpoints = state.approvedEndpoints.add(device)
                 )
-                connectionsClient.disconnectFromEndpoint(connectedDevice.endpointId)
             }
 
-            state.copy(
-                connectedEndpoints = connectedDevice?.let {
-                    state.connectedEndpoints.remove(connectedDevice)
-                } ?: state.connectedEndpoints,
-                approvedEndpoints = state.approvedEndpoints.add(device)
+            Log.d(
+                TAG,
+                "onConnectionInitiated: Accepting connection to $device, got payload $decoded"
             )
-        }
 
-        Log.d(
-            TAG,
-            "onConnectionInitiated: Accepting connection to $device, got payload $decoded"
-        )
+            retry(label = "acceptConnection") {
+                try {
+                    connectionsClient
+                        .acceptConnection(endpointId, payloadCallbackDelegate)
+                        .await()
+                } catch (e: ApiException) {
+                    when (e.status.statusCode) {
+                        ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT -> {
+                            Log.w(TAG, "Already connected to $endpointId")
+                        }
 
-        retry {
-            connectionsClient
-                .acceptConnection(endpointId, payloadCallbackDelegate)
-                .await()
+                        ConnectionsStatusCodes.STATUS_ENDPOINT_UNKNOWN -> {
+                            Log.w(TAG, "Endpoint $endpointId is unknown")
+                        }
+
+                        else -> throw e
+                    }
+                }
+            }
         }
     }
 
     override suspend fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
-        _state.update { state ->
-            val device = state.approvedEndpoints.firstOrNull { it.endpointId == endpointId }
+        stateLock.withLock {
+            _state.update { state ->
+                val device = state.approvedEndpoints.firstOrNull { it.endpointId == endpointId }
 
-            if (device == null) {
-                Log.d(TAG, "Ignoring connection result for unknown endpoint $endpointId")
-                return@update state
-            }
-
-            when (result.status.statusCode) {
-                ConnectionsStatusCodes.STATUS_OK -> {
-                    Log.d(TAG, "Connected successfully to $endpointId")
-                    state.copy(
-                        connectedEndpoints = state.connectedEndpoints.add(device),
-                        approvedEndpoints = state.approvedEndpoints.remove(device)
-                    )
+                if (device == null) {
+                    Log.d(TAG, "Ignoring connection result for unknown endpoint $endpointId")
+                    return@update state
                 }
 
-                ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
-                    Log.d(TAG, "Connection rejected for $endpointId")
-                    state.copy(
-                        connectedEndpoints = state.connectedEndpoints.remove(device),
-                        approvedEndpoints = state.approvedEndpoints.remove(device)
-                    )
-                }
+                when (result.status.statusCode) {
+                    ConnectionsStatusCodes.STATUS_OK -> {
+                        Log.d(TAG, "Connected successfully to $endpointId")
+                        state.copy(
+                            connectedEndpoints = state.connectedEndpoints.add(device),
+                            approvedEndpoints = state.approvedEndpoints.remove(device)
+                        )
+                    }
 
-                ConnectionsStatusCodes.STATUS_ERROR -> {
-                    Log.d(TAG, "Connection error for $endpointId")
-                    state.copy(
-                        connectedEndpoints = state.connectedEndpoints.remove(device),
-                        approvedEndpoints = state.approvedEndpoints.remove(device)
-                    )
-                }
+                    ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
+                        Log.d(TAG, "Connection rejected for $endpointId")
+                        state.copy(
+                            connectedEndpoints = state.connectedEndpoints.remove(device),
+                            approvedEndpoints = state.approvedEndpoints.remove(device)
+                        )
+                    }
 
-                else -> {
-                    Log.d(TAG, "Connection result for $endpointId: ${result.status}")
-                    state
+                    ConnectionsStatusCodes.STATUS_ERROR -> {
+                        Log.d(TAG, "Connection error for $endpointId")
+                        state.copy(
+                            connectedEndpoints = state.connectedEndpoints.remove(device),
+                            approvedEndpoints = state.approvedEndpoints.remove(device)
+                        )
+                    }
+
+                    else -> {
+                        Log.d(TAG, "Connection result for $endpointId: ${result.status}")
+                        state
+                    }
                 }
             }
         }
     }
 
     override suspend fun onDisconnected(endpointId: String) {
-        _state.update { state ->
-            val device = state.approvedEndpoints.firstOrNull { it.endpointId == endpointId }
+        stateLock.withLock {
+            _state.update { state ->
+                val device = state.approvedEndpoints.firstOrNull { it.endpointId == endpointId }
 
-            if (device == null) {
-                Log.d(TAG, "Ignoring connection result for unknown endpoint $endpointId")
-                return@update state
+                if (device == null) {
+                    Log.d(TAG, "Ignoring connection result for unknown endpoint $endpointId")
+                    return@update state
+                }
+
+                Log.d(TAG, "onDisconnected: $device")
+
+                state.copy(
+                    connectedEndpoints = state.connectedEndpoints.remove(device),
+                    approvedEndpoints = state.approvedEndpoints.remove(device)
+                )
             }
-
-            Log.d(TAG, "onDisconnected: $device")
-
-            state.copy(
-                connectedEndpoints = state.connectedEndpoints.remove(device),
-                approvedEndpoints = state.approvedEndpoints.remove(device)
-            )
         }
     }
 
     override suspend fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-        coroutineScope {
+        stateLock.withLock {
             val decoded = try {
                 ProtoBuf.decodeFromByteArray<EndpointInfoPayload>(info.endpointInfo)
             } catch (e: SerializationException) {
@@ -187,7 +212,7 @@ class NearbyConnectionManager(
                     "Ignoring $endpointId, could not decode payload: ${info.endpointInfo.toHexString()}",
                     e
                 )
-                return@coroutineScope
+                return
             }
 
             val device = RemoteDevice(
@@ -197,7 +222,7 @@ class NearbyConnectionManager(
 
             if (_state.value.connectedEndpoints.any { connectedDevice -> connectedDevice.deviceId == device.deviceId }) {
                 Log.w(TAG, "Ignoring $device, already connected")
-                return@coroutineScope
+                return
             }
 
             val payload = EndpointInfoPayload(
@@ -209,14 +234,28 @@ class NearbyConnectionManager(
                 "Requesting connection to $device: got $decoded, sending $payload}"
             )
 
-            retry {
-                connectionsClient
-                    .requestConnection(
-                        ProtoBuf.encodeToByteArray(payload),
-                        endpointId,
-                        connectionLifecycleCallbackDelegate
-                    )
-                    .await()
+            retry(label = "requestConnection") {
+                try {
+                    connectionsClient
+                        .requestConnection(
+                            ProtoBuf.encodeToByteArray(payload),
+                            endpointId,
+                            connectionLifecycleCallbackDelegate
+                        )
+                        .await()
+                } catch (e: ApiException) {
+                    when (e.status.statusCode) {
+                        ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT -> {
+                            Log.w(TAG, "Already connected to $endpointId")
+                        }
+
+                        ConnectionsStatusCodes.STATUS_ENDPOINT_UNKNOWN -> {
+                            Log.w(TAG, "Endpoint $endpointId is unknown")
+                        }
+
+                        else -> throw e
+                    }
+                }
             }
         }
     }
@@ -282,7 +321,11 @@ class NearbyConnectionManager(
                 }
 
                 _state.update { state ->
-                    state.copy(isOnline = true)
+                    state.copy(
+                        isOnline = true,
+                        connectedEndpoints = persistentSetOf(),
+                        approvedEndpoints = persistentSetOf()
+                    )
                 }
 
                 try {
@@ -300,7 +343,7 @@ class NearbyConnectionManager(
         val protoBytes = ProtoBuf.encodeToByteArray(payload)
         Log.d(TAG, "Sending payload to $endpointId: $payload")
 
-        retry {
+        retry(label = "sendPayload") {
             connectionsClient
                 .sendPayload(endpointId, Payload.fromBytes(protoBytes))
                 .await()
@@ -310,14 +353,6 @@ class NearbyConnectionManager(
     override fun close() {
         Log.d(TAG, "Closing all connections")
 
-        _state.updateAndGet { state ->
-            state.copy(
-                isOnline = false,
-                connectedEndpoints = persistentSetOf(),
-                approvedEndpoints = persistentSetOf()
-            )
-        }
-
         connectionsClient.apply {
             stopDiscovery()
             stopAdvertising()
@@ -325,6 +360,14 @@ class NearbyConnectionManager(
         }
 
         _connectionScope?.cancel()
+
+        _state.updateAndGet { state ->
+            state.copy(
+                isOnline = false,
+                connectedEndpoints = persistentSetOf(),
+                approvedEndpoints = persistentSetOf()
+            )
+        }
     }
 
     private val endpointDiscoveryCallbackDelegate = object : EndpointDiscoveryCallback() {
