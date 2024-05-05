@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.ImageBitmapConfig
 import androidx.compose.ui.graphics.StrokeCap
@@ -31,8 +32,8 @@ import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
@@ -108,7 +109,7 @@ fun RoomInputCanvas(
     val lines = remember { mutableStateListOf<Line>() }
 
     drawScope.draw(
-        density = Density(1f),
+        density = LocalDensity.current,
         layoutDirection = LayoutDirection.Ltr,
         canvas = canvas,
         size = size,
@@ -154,6 +155,7 @@ fun RoomInputCanvas(
             },
         bitmap = bitmap,
         contentScale = ContentScale.FillWidth,
+        filterQuality = FilterQuality.None,
         contentDescription = contentDescription
     )
 }
