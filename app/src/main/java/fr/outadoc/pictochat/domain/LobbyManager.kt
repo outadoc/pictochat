@@ -26,7 +26,7 @@ interface LobbyManager : Closeable {
 
     suspend fun join(roomId: RoomId)
     suspend fun leaveCurrentRoom()
-    suspend fun sendMessage(message: String)
+    suspend fun sendMessage(message: Message)
 
     suspend fun connect()
 }

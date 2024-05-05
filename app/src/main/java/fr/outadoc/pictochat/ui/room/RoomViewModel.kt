@@ -70,9 +70,16 @@ class RoomViewModel(
         }
     }
 
-    fun onSendMessage(message: String) {
+    fun onSendMessage(message: Message) {
         viewModelScope.launch(Dispatchers.IO) {
-            lobbyManager.sendMessage(message)
+            lobbyManager.sendMessage(
+                fr.outadoc.pictochat.domain.Message(
+                    message = message.message,
+                    bitmap = message.bitmap,
+                    bitmapHeight = message.bitmapHeight,
+                    bitmapWidth = message.bitmapWidth
+                )
+            )
         }
     }
 }

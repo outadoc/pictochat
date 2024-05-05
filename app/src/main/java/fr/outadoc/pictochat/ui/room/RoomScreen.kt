@@ -18,11 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import fr.outadoc.pictochat.domain.ChatEvent
@@ -51,7 +47,6 @@ fun RoomScreen(
     }
 
     val state by viewModel.state.collectAsState()
-    var message by remember { mutableStateOf(TextFieldValue()) }
 
     when (val currentState = state) {
         is RoomViewModel.State.Idle -> {
@@ -65,13 +60,8 @@ fun RoomScreen(
                 eventHistory = currentState.eventHistory,
                 knownProfiles = currentState.knownProfiles,
                 usersInRoom = currentState.usersInRoom,
-                message = message,
-                onMessageChange = { message = it },
                 onBackPressed = onBackPressed,
-                onSendMessage = {
-                    viewModel.onSendMessage(message.text)
-                    message = TextFieldValue()
-                },
+                onSendMessage = viewModel::onSendMessage,
             )
         }
     }
@@ -86,9 +76,7 @@ private fun RoomScreenContent(
     knownProfiles: ImmutableMap<DeviceId, UserProfile>,
     usersInRoom: Int,
     onBackPressed: () -> Unit = {},
-    message: TextFieldValue,
-    onMessageChange: (TextFieldValue) -> Unit = {},
-    onSendMessage: () -> Unit = {},
+    onSendMessage: (Message) -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier,
@@ -122,8 +110,6 @@ private fun RoomScreenContent(
                 modifier = Modifier
                     .imePadding()
                     .padding(16.dp),
-                message = message,
-                onMessageChange = onMessageChange,
                 onSendMessage = onSendMessage
             )
         }
@@ -145,8 +131,12 @@ private fun RoomScreenPreview() {
                 id = "2",
                 timestamp = Instant.parse("2021-09-01T12:03:00Z"),
                 sender = DeviceId("1"),
-                message = "Hello, world!",
-                bitmap = byteArrayOf()
+                message = fr.outadoc.pictochat.domain.Message(
+                    message = "Hello, world!",
+                    bitmap = intArrayOf(),
+                    bitmapWidth = 0,
+                    bitmapHeight = 0
+                )
             ),
             ChatEvent.Leave(
                 id = "3",
@@ -160,7 +150,6 @@ private fun RoomScreenPreview() {
                 displayColor = 0xFF0000
             )
         ),
-        message = TextFieldValue("Hello, world!"),
         usersInRoom = 42
     )
 }

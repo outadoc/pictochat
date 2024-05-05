@@ -4,12 +4,14 @@ import androidx.compose.runtime.Stable
 import fr.outadoc.pictochat.domain.ChatEvent
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
+import fr.outadoc.pictochat.domain.Message
 import fr.outadoc.pictochat.domain.RoomId
 import fr.outadoc.pictochat.domain.RoomState
 import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.preferences.LocalPreferencesProvider
 import fr.outadoc.pictochat.preferences.UserProfile
+import fr.outadoc.pictochat.protocol.Canvas
 import fr.outadoc.pictochat.protocol.ChatPayload
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
@@ -84,7 +86,7 @@ class NearbyLobbyManager(
         }
     }
 
-    override suspend fun sendMessage(message: String) {
+    override suspend fun sendMessage(message: Message) {
         val connectionState = connectionManager.state.value
 
         val currentRoomId = checkNotNull(_state.value.joinedRoomId) {
@@ -95,8 +97,12 @@ class NearbyLobbyManager(
             id = UUID.randomUUID().toString(),
             sentAt = clock.now(),
             roomId = currentRoomId.value,
-            message = message,
-            bitmap = byteArrayOf()
+            message = message.message,
+            bitmap = Canvas(
+                width = message.bitmapWidth,
+                height = message.bitmapHeight,
+                data = message.bitmap
+            )
         )
 
         // Send the message to all connected devices
@@ -228,8 +234,12 @@ class NearbyLobbyManager(
                                 id = payload.id,
                                 timestamp = payload.sentAt,
                                 sender = sender,
-                                message = payload.message,
-                                bitmap = payload.bitmap
+                                message = Message(
+                                    message = payload.message,
+                                    bitmapWidth = payload.bitmap.width,
+                                    bitmapHeight = payload.bitmap.height,
+                                    bitmap = payload.bitmap.data
+                                )
                             )
                         )
                     )
