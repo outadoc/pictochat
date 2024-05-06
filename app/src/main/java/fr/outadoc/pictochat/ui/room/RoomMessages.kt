@@ -21,6 +21,7 @@ import fr.outadoc.pictochat.domain.ChatEvent
 import fr.outadoc.pictochat.domain.ProfileColor
 import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.UserProfile
+import fr.outadoc.pictochat.ui.theme.toColor
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 
@@ -109,6 +110,7 @@ fun RoomMessages(
                                 DrawnMessage(
                                     modifier = Modifier.fillMaxWidth(),
                                     bitmap = bitmap,
+                                    color = profile.displayColor.toColor(),
                                     contentDescription = buildString {
                                         append("Canvas sent by ")
                                         append(profile.displayName)
