@@ -26,7 +26,7 @@ fun DrawnMessage(
 ) {
     Image(
         modifier = modifier
-            .border(1.dp, MaterialTheme.colorScheme.primary)
+            .border(3.dp, MaterialTheme.colorScheme.primary)
             .clipToBounds()
             .background(Color.White),
         bitmap = bitmap,

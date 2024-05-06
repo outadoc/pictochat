@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -80,10 +81,18 @@ fun RoomInput(
         canvas = canvas,
         size = InputConfig.CanvasSize,
     ) {
+        val horizontalPaddingPx = 4f
+        val verticalPaddingPx = 5f
+
         drawText(
             textMeasurer,
             text = message.text,
             style = PictoChatTextStyle,
+            topLeft = Offset(horizontalPaddingPx, verticalPaddingPx),
+            size = Size(
+                width = InputConfig.CanvasSize.width - 2 * horizontalPaddingPx,
+                height = InputConfig.CanvasSize.height - 2 * verticalPaddingPx
+            )
         )
 
         lines.forEach { line ->
