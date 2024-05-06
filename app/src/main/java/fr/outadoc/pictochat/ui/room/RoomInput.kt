@@ -103,8 +103,8 @@ fun RoomInput(
                 color = Color.Black,
                 start = line.start,
                 end = line.end,
-                strokeWidth = 3f,
-                cap = StrokeCap.Round
+                strokeWidth = 2f,
+                cap = StrokeCap.Square
             )
         }
     }
