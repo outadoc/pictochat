@@ -99,7 +99,7 @@ class NearbyLobbyManager(
             id = UUID.randomUUID().toString(),
             sentAt = clock.now(),
             roomId = currentRoomId.value,
-            text = message.text,
+            text = message.contentDescription,
             drawing = Drawing(
                 width = message.bitmapWidth,
                 height = message.bitmapHeight,
@@ -237,7 +237,7 @@ class NearbyLobbyManager(
                                 timestamp = payload.sentAt,
                                 sender = sender,
                                 message = Message(
-                                    text = payload.text,
+                                    contentDescription = payload.text,
                                     bitmapWidth = payload.drawing.width,
                                     bitmapHeight = payload.drawing.height,
                                     bitmap = payload.drawing.data

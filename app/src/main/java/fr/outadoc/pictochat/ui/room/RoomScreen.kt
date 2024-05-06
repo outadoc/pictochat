@@ -133,7 +133,7 @@ private fun RoomScreenPreview() {
                 timestamp = Instant.parse("2021-09-01T12:03:00Z"),
                 sender = DeviceId("1"),
                 message = fr.outadoc.pictochat.domain.Message(
-                    text = "Hello, world!",
+                    contentDescription = "Hello, world!",
                     bitmap = intArrayOf(),
                     bitmapWidth = 0,
                     bitmapHeight = 0

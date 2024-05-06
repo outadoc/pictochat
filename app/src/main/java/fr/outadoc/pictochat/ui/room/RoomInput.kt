@@ -139,7 +139,7 @@ fun RoomInput(
                 val pixelMap = bitmap.toPixelMap()
                 onSendMessage(
                     Message(
-                        message = message.text,
+                        contentDescription = message.text,
                         bitmap = pixelMap.buffer,
                         bitmapWidth = pixelMap.width,
                         bitmapHeight = pixelMap.height

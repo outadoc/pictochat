@@ -1,9 +1,7 @@
 package fr.outadoc.pictochat.domain
 
-import fr.outadoc.pictochat.ui.room.Message
-
 data class Message(
-    val text: String,
+    val contentDescription: String,
     val bitmap: IntArray,
     val bitmapHeight: Int,
     val bitmapWidth: Int
@@ -14,7 +12,7 @@ data class Message(
 
         other as Message
 
-        if (text != other.message) return false
+        if (contentDescription != other.contentDescription) return false
         if (!bitmap.contentEquals(other.bitmap)) return false
         if (bitmapHeight != other.bitmapHeight) return false
         if (bitmapWidth != other.bitmapWidth) return false
@@ -23,7 +21,7 @@ data class Message(
     }
 
     override fun hashCode(): Int {
-        var result = text.hashCode()
+        var result = contentDescription.hashCode()
         result = 31 * result + bitmap.contentHashCode()
         result = 31 * result + bitmapHeight
         result = 31 * result + bitmapWidth

@@ -82,9 +82,7 @@ fun RoomMessages(
                                     buildAnnotatedString {
                                         withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
                                             append(profile.displayName)
-                                            append(": ")
                                         }
-                                        append(event.message.text)
                                     }
                                 )
 
@@ -111,7 +109,16 @@ fun RoomMessages(
                                 DrawnMessage(
                                     modifier = Modifier.fillMaxWidth(),
                                     bitmap = bitmap,
-                                    contentDescription = "Canvas sent by ${profile.displayName}"
+                                    contentDescription = buildString {
+                                        append("Canvas sent by ")
+                                        append(profile.displayName)
+                                        append(".")
+
+                                        if (event.message.contentDescription.isNotBlank()) {
+                                            append("Drawing description: ")
+                                            append(event.message.contentDescription)
+                                        }
+                                    }
                                 )
                             }
                         }
