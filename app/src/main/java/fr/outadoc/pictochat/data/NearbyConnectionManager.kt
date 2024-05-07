@@ -74,14 +74,10 @@ class NearbyConnectionManager(
         } catch (e: SerializationException) {
             Log.d(TAG, "Rejected connection to $endpointId, could not decode payload")
 
-            retry(label = "rejectConnection") {
-                try {
-                    connectionsClient
-                        .rejectConnection(endpointId)
-                        .await()
-                } catch (e: Exception) {
-                    handleKnownExceptionOrThrow(e)
-                }
+            wrap(label = "rejectConnection") {
+                connectionsClient
+                    .rejectConnection(endpointId)
+                    .await()
             }
 
             return
@@ -120,14 +116,10 @@ class NearbyConnectionManager(
                 "onConnectionInitiated: Accepting connection to $device, got payload $decoded"
             )
 
-            retry(label = "acceptConnection") {
-                try {
-                    connectionsClient
-                        .acceptConnection(endpointId, payloadCallbackDelegate)
-                        .await()
-                } catch (e: ApiException) {
-                    handleKnownExceptionOrThrow(e)
-                }
+            wrap(label = "acceptConnection") {
+                connectionsClient
+                    .acceptConnection(endpointId, payloadCallbackDelegate)
+                    .await()
             }
         }
     }
@@ -228,18 +220,14 @@ class NearbyConnectionManager(
                 "Requesting connection to $device: got $decoded, sending $payload}"
             )
 
-            retry(label = "requestConnection") {
-                try {
-                    connectionsClient
-                        .requestConnection(
-                            ProtoBuf.encodeToByteArray(payload),
-                            endpointId,
-                            connectionLifecycleCallbackDelegate
-                        )
-                        .await()
-                } catch (e: ApiException) {
-                    handleKnownExceptionOrThrow(e)
-                }
+            wrap(label = "requestConnection") {
+                connectionsClient
+                    .requestConnection(
+                        ProtoBuf.encodeToByteArray(payload),
+                        endpointId,
+                        connectionLifecycleCallbackDelegate
+                    )
+                    .await()
             }
         }
     }
@@ -275,7 +263,7 @@ class NearbyConnectionManager(
                 launch(Dispatchers.IO) {
                     Log.d(TAG, "startDiscovery")
 
-                    try {
+                    wrap(label = "startDiscovery") {
                         connectionsClient
                             .startDiscovery(
                                 PICTOCHAT_SERVICE_ID,
@@ -285,8 +273,6 @@ class NearbyConnectionManager(
                                     .build()
                             )
                             .await()
-                    } catch (e: Exception) {
-                        handleKnownExceptionOrThrow(e)
                     }
                 }
 
@@ -297,7 +283,7 @@ class NearbyConnectionManager(
 
                     Log.d(TAG, "startAdvertising: $endpointInfo")
 
-                    try {
+                    wrap(label = "startAdvertising") {
                         connectionsClient
                             .startAdvertising(
                                 ProtoBuf.encodeToByteArray(endpointInfo),
@@ -308,8 +294,6 @@ class NearbyConnectionManager(
                                     .build()
                             )
                             .await()
-                    } catch (e: Exception) {
-                        handleKnownExceptionOrThrow(e)
                     }
 
                     _state.update { state ->
@@ -336,14 +320,10 @@ class NearbyConnectionManager(
         val protoBytes = ProtoBuf.encodeToByteArray(payload)
         Log.d(TAG, "Sending payload to $endpointId: $payload")
 
-        retry(label = "sendPayload") {
-            try {
-                connectionsClient
-                    .sendPayload(endpointId, Payload.fromBytes(protoBytes))
-                    .await()
-            } catch (e: Exception) {
-                handleKnownExceptionOrThrow(e)
-            }
+        wrap(label = "sendPayload") {
+            connectionsClient
+                .sendPayload(endpointId, Payload.fromBytes(protoBytes))
+                .await()
         }
     }
 
@@ -367,31 +347,59 @@ class NearbyConnectionManager(
         }
     }
 
-    private fun handleKnownExceptionOrThrow(e: Exception) {
-        when (e) {
-            is ApiException -> {
-                when (e.statusCode) {
-                    ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT -> {
-                        Log.w(TAG, "Already connected to endpoint")
-                    }
+    private suspend fun <T> wrap(
+        label: String,
+        block: suspend () -> T,
+    ) {
+        try {
+            retry(label = label) {
+                try {
+                    block()
+                } catch (e: Exception) {
+                    when (e) {
+                        is ApiException -> {
+                            // Errors that we don't need to retry
+                            when (e.statusCode) {
+                                ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT -> {
+                                    Log.w(TAG, "Already connected to endpoint", e)
+                                }
 
-                    ConnectionsStatusCodes.STATUS_ENDPOINT_UNKNOWN -> {
-                        Log.w(TAG, "Endpoint unknown")
-                    }
+                                ConnectionsStatusCodes.STATUS_ENDPOINT_UNKNOWN -> {
+                                    Log.w(TAG, "Endpoint unknown", e)
+                                }
 
-                    ConnectionsStatusCodes.STATUS_ALREADY_DISCOVERING -> {
-                        Log.w(TAG, "Already discovering")
-                    }
+                                ConnectionsStatusCodes.STATUS_ALREADY_DISCOVERING -> {
+                                    Log.w(TAG, "Already discovering", e)
+                                }
 
-                    ConnectionsStatusCodes.STATUS_ALREADY_ADVERTISING -> {
-                        Log.w(TAG, "Already advertising")
-                    }
+                                ConnectionsStatusCodes.STATUS_ALREADY_ADVERTISING -> {
+                                    Log.w(TAG, "Already advertising", e)
+                                }
 
-                    else -> throw e
+                                else -> throw e
+                            }
+                        }
+
+                        else -> throw e
+                    }
                 }
             }
+        } catch (e: Exception) {
+            when (e) {
+                is ApiException -> {
+                    // Errors to be processed after retrying
+                    when (e.statusCode) {
+                        ConnectionsStatusCodes.STATUS_RADIO_ERROR -> {
+                            Log.e(TAG, "Radio error, closing connection", e)
+                            close()
+                        }
 
-            else -> throw e
+                        else -> throw e
+                    }
+                }
+
+                else -> throw e
+            }
         }
     }
 
