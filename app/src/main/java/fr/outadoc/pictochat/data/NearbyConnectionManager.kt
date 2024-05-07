@@ -75,9 +75,13 @@ class NearbyConnectionManager(
             Log.d(TAG, "Rejected connection to $endpointId, could not decode payload")
 
             retry(label = "rejectConnection") {
-                connectionsClient
-                    .rejectConnection(endpointId)
-                    .await()
+                try {
+                    connectionsClient
+                        .rejectConnection(endpointId)
+                        .await()
+                } catch (e: Exception) {
+                    handleKnownExceptionOrThrow(e)
+                }
             }
 
             return
@@ -122,17 +126,7 @@ class NearbyConnectionManager(
                         .acceptConnection(endpointId, payloadCallbackDelegate)
                         .await()
                 } catch (e: ApiException) {
-                    when (e.status.statusCode) {
-                        ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT -> {
-                            Log.w(TAG, "Already connected to $endpointId")
-                        }
-
-                        ConnectionsStatusCodes.STATUS_ENDPOINT_UNKNOWN -> {
-                            Log.w(TAG, "Endpoint $endpointId is unknown")
-                        }
-
-                        else -> throw e
-                    }
+                    handleKnownExceptionOrThrow(e)
                 }
             }
         }
@@ -244,17 +238,7 @@ class NearbyConnectionManager(
                         )
                         .await()
                 } catch (e: ApiException) {
-                    when (e.status.statusCode) {
-                        ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT -> {
-                            Log.w(TAG, "Already connected to $endpointId")
-                        }
-
-                        ConnectionsStatusCodes.STATUS_ENDPOINT_UNKNOWN -> {
-                            Log.w(TAG, "Endpoint $endpointId is unknown")
-                        }
-
-                        else -> throw e
-                    }
+                    handleKnownExceptionOrThrow(e)
                 }
             }
         }
@@ -290,15 +274,20 @@ class NearbyConnectionManager(
 
                 launch(Dispatchers.IO) {
                     Log.d(TAG, "startDiscovery")
-                    connectionsClient
-                        .startDiscovery(
-                            PICTOCHAT_SERVICE_ID,
-                            endpointDiscoveryCallbackDelegate,
-                            DiscoveryOptions.Builder()
-                                .setStrategy(STRATEGY)
-                                .build()
-                        )
-                        .await()
+
+                    try {
+                        connectionsClient
+                            .startDiscovery(
+                                PICTOCHAT_SERVICE_ID,
+                                endpointDiscoveryCallbackDelegate,
+                                DiscoveryOptions.Builder()
+                                    .setStrategy(STRATEGY)
+                                    .build()
+                            )
+                            .await()
+                    } catch (e: Exception) {
+                        handleKnownExceptionOrThrow(e)
+                    }
                 }
 
                 launch(Dispatchers.IO) {
@@ -308,31 +297,35 @@ class NearbyConnectionManager(
 
                     Log.d(TAG, "startAdvertising: $endpointInfo")
 
-                    connectionsClient
-                        .startAdvertising(
-                            ProtoBuf.encodeToByteArray(endpointInfo),
-                            PICTOCHAT_SERVICE_ID,
-                            connectionLifecycleCallbackDelegate,
-                            AdvertisingOptions.Builder()
-                                .setStrategy(STRATEGY)
-                                .build()
+                    try {
+                        connectionsClient
+                            .startAdvertising(
+                                ProtoBuf.encodeToByteArray(endpointInfo),
+                                PICTOCHAT_SERVICE_ID,
+                                connectionLifecycleCallbackDelegate,
+                                AdvertisingOptions.Builder()
+                                    .setStrategy(STRATEGY)
+                                    .build()
+                            )
+                            .await()
+                    } catch (e: Exception) {
+                        handleKnownExceptionOrThrow(e)
+                    }
+
+                    _state.update { state ->
+                        state.copy(
+                            isOnline = true,
+                            connectedEndpoints = persistentSetOf(),
+                            approvedEndpoints = persistentSetOf()
                         )
-                        .await()
-                }
+                    }
 
-                _state.update { state ->
-                    state.copy(
-                        isOnline = true,
-                        connectedEndpoints = persistentSetOf(),
-                        approvedEndpoints = persistentSetOf()
-                    )
-                }
-
-                try {
-                    awaitCancellation()
-                } catch (e: Exception) {
-                    Log.d(TAG, "Connection cancelled")
-                    close()
+                    try {
+                        awaitCancellation()
+                    } catch (e: Exception) {
+                        Log.d(TAG, "Connection cancelled")
+                        close()
+                    }
                 }
             }
         }
@@ -344,9 +337,13 @@ class NearbyConnectionManager(
         Log.d(TAG, "Sending payload to $endpointId: $payload")
 
         retry(label = "sendPayload") {
-            connectionsClient
-                .sendPayload(endpointId, Payload.fromBytes(protoBytes))
-                .await()
+            try {
+                connectionsClient
+                    .sendPayload(endpointId, Payload.fromBytes(protoBytes))
+                    .await()
+            } catch (e: Exception) {
+                handleKnownExceptionOrThrow(e)
+            }
         }
     }
 
@@ -367,6 +364,26 @@ class NearbyConnectionManager(
                 connectedEndpoints = persistentSetOf(),
                 approvedEndpoints = persistentSetOf()
             )
+        }
+    }
+
+    private fun handleKnownExceptionOrThrow(e: Exception) {
+        when (e) {
+            is ApiException -> {
+                when (e.statusCode) {
+                    ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT -> {
+                        Log.w(TAG, "Already connected to endpoint")
+                    }
+
+                    ConnectionsStatusCodes.STATUS_ENDPOINT_UNKNOWN -> {
+                        Log.w(TAG, "Endpoint unknown")
+                    }
+
+                    else -> throw e
+                }
+            }
+
+            else -> throw e
         }
     }
 
@@ -420,7 +437,10 @@ class NearbyConnectionManager(
             }
         }
 
-        override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
+        override fun onPayloadTransferUpdate(
+            endpointId: String,
+            update: PayloadTransferUpdate,
+        ) {
             _connectionScope?.launch(Dispatchers.IO) {
                 Log.d("PayloadCallbackDelegate", "onPayloadTransferUpdate")
                 this@NearbyConnectionManager.onPayloadTransferUpdate(endpointId, update)
