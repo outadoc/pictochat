@@ -30,6 +30,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -45,6 +46,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalSerializationApi::class, ExperimentalStdlibApi::class)
 class NearbyConnectionManager(
@@ -89,8 +91,11 @@ class NearbyConnectionManager(
         )
 
         stateLock.withLock {
+            Log.d(TAG, "onConnectionInitiated: Current state: $state")
+
+            delay(1.seconds)
+
             _state.update { state ->
-                Log.d(TAG, "onConnectionInitiated: Current state: $state")
                 val connectedDevice = state.connectedEndpoints.firstOrNull { connectedDevice ->
                     connectedDevice.deviceId == device.deviceId
                 }
@@ -220,6 +225,8 @@ class NearbyConnectionManager(
                 "Requesting connection to $device: got $decoded, sending $payload}"
             )
 
+            delay(1.seconds)
+
             wrap(label = "requestConnection") {
                 connectionsClient
                     .requestConnection(
@@ -238,12 +245,14 @@ class NearbyConnectionManager(
     override suspend fun onPayloadReceived(endpointId: String, payload: Payload) {
         val proto = ProtoBuf.decodeFromByteArray<ChatPayload>(payload.asBytes()!!)
         Log.d(TAG, "onPayloadReceived: $endpointId, payload: $proto")
-        _payloadFlow.tryEmit(
-            ReceivedPayload(
-                sender = _state.value.connectedEndpoints.first { it.endpointId == endpointId },
-                data = proto
+        stateLock.withLock {
+            _payloadFlow.tryEmit(
+                ReceivedPayload(
+                    sender = _state.value.connectedEndpoints.first { it.endpointId == endpointId },
+                    data = proto
+                )
             )
-        )
+        }
     }
 
     override suspend fun onPayloadTransferUpdate(
