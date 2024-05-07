@@ -17,6 +17,7 @@ accompanist-permissions = { module = "com.google.accompanist:accompanist-permiss
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version = "1.6.1" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-datastore = { module = "androidx.datastore:datastore-preferences", version = "1.1.1" }
+desugar_jdk_libs = { module = "com.android.tools:desugar_jdk_libs", version = "2.0.4" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }

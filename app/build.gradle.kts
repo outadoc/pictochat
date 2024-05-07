@@ -35,6 +35,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -82,11 +83,13 @@ dependencies {
     implementation(libs.kotlinx.immutableCollections)
     implementation(libs.kotlinx.serialization.protobuf)
     implementation(libs.material.components)
+    implementation(libs.playServices.nearby)
+
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    implementation(libs.playServices.nearby)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
