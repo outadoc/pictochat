@@ -3,8 +3,10 @@ package fr.outadoc.pictochat.ui.room
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Canvas
@@ -26,7 +28,12 @@ fun DrawnMessage(
 ) {
     Image(
         modifier = modifier
-            .border(3.dp, color)
+            .border(
+                width = 3.dp,
+                color = color,
+                shape = MaterialTheme.shapes.medium
+            )
+            .clip(MaterialTheme.shapes.medium)
             .clipToBounds()
             .background(Color.White),
         bitmap = bitmap,
