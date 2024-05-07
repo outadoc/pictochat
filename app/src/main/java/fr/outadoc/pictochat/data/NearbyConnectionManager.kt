@@ -379,6 +379,14 @@ class NearbyConnectionManager(
                         Log.w(TAG, "Endpoint unknown")
                     }
 
+                    ConnectionsStatusCodes.STATUS_ALREADY_DISCOVERING -> {
+                        Log.w(TAG, "Already discovering")
+                    }
+
+                    ConnectionsStatusCodes.STATUS_ALREADY_ADVERTISING -> {
+                        Log.w(TAG, "Already advertising")
+                    }
+
                     else -> throw e
                 }
             }
