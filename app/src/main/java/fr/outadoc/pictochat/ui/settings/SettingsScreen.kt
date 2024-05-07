@@ -142,7 +142,7 @@ fun SettingsContent(
                     },
                     dismissButton = {
                         TextButton(onClick = { openDialog = false }) {
-                            Text("Dismiss")
+                            Text("Cancel")
                         }
                     }
                 )
@@ -216,7 +216,7 @@ fun SettingsContent(
                     },
                     dismissButton = {
                         TextButton(onClick = { openDialog = false }) {
-                            Text("Dismiss")
+                            Text("Cancel")
                         }
                     }
                 )
