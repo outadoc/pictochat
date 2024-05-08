@@ -140,27 +140,24 @@ class NearbyConnectionManager(
                     return@update state
                 }
 
+                Log.d(
+                    TAG,
+                    "Connection result for $endpointId: ${
+                        ConnectionsStatusCodes.getStatusCodeString(result.status.statusCode)
+                    }"
+                )
+
                 when (result.status.statusCode) {
-                    ConnectionsStatusCodes.STATUS_OK -> {
-                        Log.d(TAG, "Connected successfully to $endpointId")
+                    ConnectionsStatusCodes.STATUS_OK,
+                    ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT,
+                    -> {
                         state.copy(
                             connectedEndpoints = state.connectedEndpoints.add(device),
                             approvedEndpoints = state.approvedEndpoints.remove(device)
                         )
                     }
 
-                    ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT -> {
-                        Log.d(TAG, "Already connected to $endpointId")
-                        state
-                    }
-
                     else -> {
-                        Log.d(
-                            TAG,
-                            "Connection result for $endpointId: ${
-                                ConnectionsStatusCodes.getStatusCodeString(result.status.statusCode)
-                            }"
-                        )
                         state.copy(
                             connectedEndpoints = state.connectedEndpoints.remove(device),
                             approvedEndpoints = state.approvedEndpoints.remove(device)
@@ -174,18 +171,9 @@ class NearbyConnectionManager(
     override suspend fun onDisconnected(endpointId: String) {
         stateLock.withLock {
             _state.update { state ->
-                val device = state.approvedEndpoints.firstOrNull { it.endpointId == endpointId }
-
-                if (device == null) {
-                    Log.d(TAG, "Ignoring connection result for unknown endpoint $endpointId")
-                    return@update state
-                }
-
-                Log.d(TAG, "onDisconnected: $device")
-
                 state.copy(
-                    connectedEndpoints = state.connectedEndpoints.remove(device),
-                    approvedEndpoints = state.approvedEndpoints.remove(device)
+                    connectedEndpoints = state.connectedEndpoints.removeAll { it.endpointId == endpointId },
+                    approvedEndpoints = state.approvedEndpoints.removeAll { it.endpointId == endpointId }
                 )
             }
         }
@@ -209,6 +197,8 @@ class NearbyConnectionManager(
                 deviceId = DeviceId(decoded.deviceId)
             )
 
+            Log.i(TAG, "onEndpointFound: $discoveredDevice, got payload $decoded")
+
             if (_state.value.connectedEndpoints.any { connectedDevice -> connectedDevice.deviceId == discoveredDevice.deviceId }) {
                 Log.w(TAG, "Ignoring $discoveredDevice, already connected")
                 return
@@ -226,10 +216,7 @@ class NearbyConnectionManager(
 
             val payload = EndpointInfoPayload(deviceId = myDeviceId)
 
-            Log.i(
-                TAG,
-                "Requesting connection to $discoveredDevice: got $decoded, sending $payload}"
-            )
+            Log.i(TAG, "Requesting connection to $discoveredDevice: sending $payload")
 
             // Add some delay so that the other device is ready
             delay(1.seconds)
