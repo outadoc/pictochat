@@ -1,6 +1,6 @@
 package fr.outadoc.pictochat.data
 
-import androidx.compose.runtime.Stable
+import androidx.compose.ui.util.fastAny
 import fr.outadoc.pictochat.domain.ChatEvent
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import java.util.UUID
 
 class NearbyLobbyManager(
@@ -36,15 +37,19 @@ class NearbyLobbyManager(
     private val clock: Clock,
 ) : LobbyManager {
 
-    @Stable
-    data class InternalState(
+    private data class UpdatedUserProfile(
+        val updatedAt: Instant,
+        val userProfile: UserProfile,
+    )
+
+    private data class InternalState(
         val rooms: PersistentMap<RoomId, RoomState> = persistentMapOf(
             RoomId(0) to RoomState(id = RoomId(0), displayName = "Room A"),
             RoomId(1) to RoomState(id = RoomId(1), displayName = "Room B"),
             RoomId(2) to RoomState(id = RoomId(2), displayName = "Room C"),
             RoomId(3) to RoomState(id = RoomId(3), displayName = "Room D"),
         ),
-        val knownProfiles: PersistentMap<DeviceId, UserProfile> = persistentMapOf(),
+        val knownProfiles: PersistentMap<DeviceId, UpdatedUserProfile> = persistentMapOf(),
         val joinedRoomId: RoomId? = null,
     )
 
@@ -61,6 +66,8 @@ class NearbyLobbyManager(
                 connectedEndpoints = connectionState.connectedEndpoints,
                 userProfile = userProfile,
                 knownProfiles = internalState.knownProfiles
+                    .mapValues { it.value.userProfile }
+                    .toPersistentMap()
                     .put(deviceIdProvider.deviceId, userProfile),
                 nearbyUserCount = connectionState.connectedEndpoints.size,
                 joinedRoomId = internalState.joinedRoomId,
@@ -139,6 +146,7 @@ class NearbyLobbyManager(
                         val payload = ChatPayload.Status(
                             id = UUID.randomUUID().toString(),
                             senderDeviceId = deviceIdProvider.deviceId.value,
+                            sentAt = clock.now(),
                             displayName = state.userProfile.displayName,
                             displayColorId = state.userProfile.displayColor.id,
                             roomId = state.joinedRoomId?.value
@@ -156,18 +164,28 @@ class NearbyLobbyManager(
         }
     }
 
-    private suspend fun processPayload(payload: ReceivedPayload) {
+    private fun processPayload(payload: ReceivedPayload) {
         when (payload.data) {
             is ChatPayload.Status -> {
                 _state.update { state ->
+                    val sender = DeviceId(payload.data.senderDeviceId)
+                    val existingProfile: UpdatedUserProfile? = state.knownProfiles[sender]
+
+                    if (existingProfile != null && existingProfile.updatedAt > payload.data.sentAt) {
+                        return@update state
+                    }
+
                     state.copy(
                         // Remember the user's profile
                         knownProfiles = state.knownProfiles
                             .put(
-                                DeviceId(payload.data.senderDeviceId),
-                                UserProfile(
-                                    displayName = payload.data.displayName,
-                                    displayColor = ProfileColor.fromId(payload.data.displayColorId)
+                                sender,
+                                UpdatedUserProfile(
+                                    updatedAt = payload.data.sentAt,
+                                    UserProfile(
+                                        displayName = payload.data.displayName,
+                                        displayColor = ProfileColor.fromId(payload.data.displayColorId)
+                                    )
                                 )
                             ),
                         // Update the rooms' connected devices
@@ -176,17 +194,13 @@ class NearbyLobbyManager(
                                 when (id.value) {
                                     payload.data.roomId -> {
                                         state.copy(
-                                            connectedDevices = state.connectedDevices.add(
-                                                DeviceId(payload.data.senderDeviceId)
-                                            )
+                                            connectedDevices = state.connectedDevices.add(sender)
                                         )
                                     }
 
                                     else -> {
                                         state.copy(
-                                            connectedDevices = state.connectedDevices.remove(
-                                                DeviceId(payload.data.senderDeviceId)
-                                            )
+                                            connectedDevices = state.connectedDevices.remove(sender)
                                         )
                                     }
                                 }
@@ -213,6 +227,11 @@ class NearbyLobbyManager(
 
             checkNotNull(roomState) {
                 "Received message for unknown room ${payload.roomId}"
+            }
+
+            // If the message is already in the room's event history, ignore it
+            if (state.rooms[roomId]?.eventHistory?.fastAny { it.id == payload.id } == true) {
+                return@update state
             }
 
             state.copy(
