@@ -54,7 +54,7 @@ class RoomViewModel(
                         eventHistory = currentRoom.eventHistory,
                         knownProfiles = lobbyState.knownProfiles,
                         userProfile = lobbyState.userProfile,
-                        usersInRoom = currentRoom.connectedDevices.size + 1
+                        usersInRoom = currentRoom.connectedDevices.size
                     )
                 }
             }

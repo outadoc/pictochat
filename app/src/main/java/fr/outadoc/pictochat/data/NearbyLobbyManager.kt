@@ -83,14 +83,40 @@ class NearbyLobbyManager(
             "Room $roomId does not exist"
         }
 
+        val deviceId = deviceIdProvider.deviceId
         _state.update { state ->
-            state.copy(joinedRoomId = roomId)
+            state.copy(
+                joinedRoomId = roomId,
+                rooms = state.rooms
+                    .mapValues { (id, roomState) ->
+                        when (id) {
+                            roomId -> roomState.copy(
+                                connectedDevices = roomState.connectedDevices.add(deviceId)
+                            )
+
+                            else -> roomState.copy(
+                                connectedDevices = roomState.connectedDevices.remove(deviceId)
+                            )
+                        }
+                    }
+                    .toPersistentMap()
+            )
         }
     }
 
     override suspend fun leaveCurrentRoom() {
+        val deviceId = deviceIdProvider.deviceId
         _state.update { state ->
-            state.copy(joinedRoomId = null)
+            state.copy(
+                joinedRoomId = null,
+                rooms = state.rooms
+                    .mapValues { (_, roomState) ->
+                        roomState.copy(
+                            connectedDevices = roomState.connectedDevices.remove(deviceId)
+                        )
+                    }
+                    .toPersistentMap()
+            )
         }
     }
 
@@ -190,17 +216,19 @@ class NearbyLobbyManager(
                             ),
                         // Update the rooms' connected devices
                         rooms = state.rooms
-                            .mapValues { (id, state) ->
+                            .mapValues { (id, roomState) ->
                                 when (id.value) {
                                     payload.data.roomId -> {
-                                        state.copy(
-                                            connectedDevices = state.connectedDevices.add(sender)
+                                        roomState.copy(
+                                            connectedDevices = roomState.connectedDevices
+                                                .add(sender)
                                         )
                                     }
 
                                     else -> {
-                                        state.copy(
-                                            connectedDevices = state.connectedDevices.remove(sender)
+                                        roomState.copy(
+                                            connectedDevices = roomState.connectedDevices
+                                                .remove(sender)
                                         )
                                     }
                                 }
