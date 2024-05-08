@@ -23,7 +23,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -195,21 +194,6 @@ class NearbyLobbyManager(
                             .toPersistentMap()
                     )
                 }
-            }
-
-            is ChatPayload.StatusRequest -> {
-                // Someone asked for our status, let's send it
-                val profile = state.first().userProfile
-                connectionManager.sendPayload(
-                    endpointId = payload.sender.endpointId,
-                    payload = ChatPayload.Status(
-                        id = UUID.randomUUID().toString(),
-                        senderDeviceId = deviceIdProvider.deviceId.value,
-                        displayName = profile.displayName,
-                        displayColorId = profile.displayColor.id,
-                        roomId = _state.value.joinedRoomId?.value
-                    )
-                )
             }
 
             is ChatPayload.Message -> {

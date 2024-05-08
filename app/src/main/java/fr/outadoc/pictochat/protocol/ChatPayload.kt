@@ -15,15 +15,6 @@ sealed class ChatPayload {
     abstract val senderDeviceId: String
 
     @Serializable
-    @SerialName("status_request")
-    data class StatusRequest(
-        @ProtoNumber(1)
-        override val id: String,
-        @ProtoNumber(2)
-        override val senderDeviceId: String,
-    ) : ChatPayload()
-
-    @Serializable
     @SerialName("status")
     data class Status(
         @ProtoNumber(1)
