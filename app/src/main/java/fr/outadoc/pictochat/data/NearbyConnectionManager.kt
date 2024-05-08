@@ -148,25 +148,22 @@ class NearbyConnectionManager(
                         )
                     }
 
-                    ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
-                        Log.d(TAG, "Connection rejected for $endpointId")
-                        state.copy(
-                            connectedEndpoints = state.connectedEndpoints.remove(device),
-                            approvedEndpoints = state.approvedEndpoints.remove(device)
-                        )
-                    }
-
-                    ConnectionsStatusCodes.STATUS_ERROR -> {
-                        Log.d(TAG, "Connection error for $endpointId")
-                        state.copy(
-                            connectedEndpoints = state.connectedEndpoints.remove(device),
-                            approvedEndpoints = state.approvedEndpoints.remove(device)
-                        )
+                    ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT -> {
+                        Log.d(TAG, "Already connected to $endpointId")
+                        state
                     }
 
                     else -> {
-                        Log.d(TAG, "Connection result for $endpointId: ${result.status}")
-                        state
+                        Log.d(
+                            TAG,
+                            "Connection result for $endpointId: ${
+                                ConnectionsStatusCodes.getStatusCodeString(result.status.statusCode)
+                            }"
+                        )
+                        state.copy(
+                            connectedEndpoints = state.connectedEndpoints.remove(device),
+                            approvedEndpoints = state.approvedEndpoints.remove(device)
+                        )
                     }
                 }
             }
