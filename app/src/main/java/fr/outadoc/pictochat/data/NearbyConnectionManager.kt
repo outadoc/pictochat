@@ -423,7 +423,10 @@ class NearbyConnectionManager(
 
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
             _connectionScope?.launch(Dispatchers.IO) {
-                Log.d("EndpointDiscoveryCallbackDelegate", "onEndpointFound(endpointId=$endpointId, info=$info)")
+                Log.d(
+                    "EndpointDiscoveryCallbackDelegate",
+                    "onEndpointFound(endpointId=$endpointId, info=$info)"
+                )
                 this@NearbyConnectionManager.onEndpointFound(endpointId, info)
             }
         }
@@ -440,21 +443,30 @@ class NearbyConnectionManager(
 
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
             _connectionScope?.launch(Dispatchers.IO) {
-                Log.d("ConnectionLifecycleCallbackDelegate", "onConnectionInitiated(endpointId=$endpointId, connectionInfo=$connectionInfo)")
+                Log.d(
+                    "ConnectionLifecycleCallbackDelegate",
+                    "onConnectionInitiated(endpointId=$endpointId, connectionInfo=$connectionInfo)"
+                )
                 this@NearbyConnectionManager.onConnectionInitiated(endpointId, connectionInfo)
             }
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
             _connectionScope?.launch(Dispatchers.IO) {
-                Log.d("ConnectionLifecycleCallbackDelegate", "onConnectionResult(endpointId=$endpointId, result=$result)")
+                Log.d(
+                    "ConnectionLifecycleCallbackDelegate",
+                    "onConnectionResult(endpointId=$endpointId, result=$result)"
+                )
                 this@NearbyConnectionManager.onConnectionResult(endpointId, result)
             }
         }
 
         override fun onDisconnected(endpointId: String) {
             _connectionScope?.launch(Dispatchers.IO) {
-                Log.d("ConnectionLifecycleCallbackDelegate", "onDisconnected(endpointId=$endpointId)")
+                Log.d(
+                    "ConnectionLifecycleCallbackDelegate",
+                    "onDisconnected(endpointId=$endpointId)"
+                )
                 this@NearbyConnectionManager.onDisconnected(endpointId)
             }
         }
@@ -464,7 +476,10 @@ class NearbyConnectionManager(
 
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
             _connectionScope?.launch(Dispatchers.IO) {
-                Log.d("PayloadCallbackDelegate", "onPayloadReceived(endpointId=$endpointId, payload=$payload)")
+                Log.d(
+                    "PayloadCallbackDelegate",
+                    "onPayloadReceived(endpointId=$endpointId, payload=$payload)"
+                )
                 this@NearbyConnectionManager.onPayloadReceived(endpointId, payload)
             }
         }
@@ -474,7 +489,10 @@ class NearbyConnectionManager(
             update: PayloadTransferUpdate,
         ) {
             _connectionScope?.launch(Dispatchers.IO) {
-                Log.d("PayloadCallbackDelegate", "onPayloadTransferUpdate(endpointId=$endpointId, update=$update)")
+                Log.d(
+                    "PayloadCallbackDelegate",
+                    "onPayloadTransferUpdate(endpointId=$endpointId, update=$update)"
+                )
                 this@NearbyConnectionManager.onPayloadTransferUpdate(endpointId, update)
             }
         }
