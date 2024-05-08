@@ -5,9 +5,9 @@ import fr.outadoc.pictochat.domain.ChatEvent
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
 import fr.outadoc.pictochat.domain.Message
+import fr.outadoc.pictochat.domain.ProfileColor
 import fr.outadoc.pictochat.domain.RoomId
 import fr.outadoc.pictochat.domain.RoomState
-import fr.outadoc.pictochat.domain.ProfileColor
 import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.preferences.LocalPreferencesRepository
@@ -97,6 +97,7 @@ class NearbyLobbyManager(
 
         val payload = ChatPayload.Message(
             id = UUID.randomUUID().toString(),
+            senderDeviceId = deviceIdProvider.deviceId.value,
             sentAt = clock.now(),
             roomId = currentRoomId.value,
             text = message.contentDescription,
@@ -136,15 +137,18 @@ class NearbyLobbyManager(
 
                 launch {
                     state.collect { state ->
+                        val payload = ChatPayload.Status(
+                            id = UUID.randomUUID().toString(),
+                            senderDeviceId = deviceIdProvider.deviceId.value,
+                            displayName = state.userProfile.displayName,
+                            displayColorId = state.userProfile.displayColor.id,
+                            roomId = state.joinedRoomId?.value
+                        )
+
                         state.connectedEndpoints.forEach { endpoint ->
                             connectionManager.sendPayload(
                                 endpointId = endpoint.endpointId,
-                                payload = ChatPayload.Status(
-                                    id = UUID.randomUUID().toString(),
-                                    displayName = state.userProfile.displayName,
-                                    displayColorId = state.userProfile.displayColor.id,
-                                    roomId = state.joinedRoomId?.value
-                                )
+                                payload = payload
                             )
                         }
                     }
@@ -161,7 +165,7 @@ class NearbyLobbyManager(
                         // Remember the user's profile
                         knownProfiles = state.knownProfiles
                             .put(
-                                payload.sender.deviceId,
+                                DeviceId(payload.data.senderDeviceId),
                                 UserProfile(
                                     displayName = payload.data.displayName,
                                     displayColor = ProfileColor.fromId(payload.data.displayColorId)
@@ -174,7 +178,7 @@ class NearbyLobbyManager(
                                     payload.data.roomId -> {
                                         state.copy(
                                             connectedDevices = state.connectedDevices.add(
-                                                payload.sender.deviceId
+                                                DeviceId(payload.data.senderDeviceId)
                                             )
                                         )
                                     }
@@ -182,7 +186,7 @@ class NearbyLobbyManager(
                                     else -> {
                                         state.copy(
                                             connectedDevices = state.connectedDevices.remove(
-                                                payload.sender.deviceId
+                                                DeviceId(payload.data.senderDeviceId)
                                             )
                                         )
                                     }
@@ -200,6 +204,7 @@ class NearbyLobbyManager(
                     endpointId = payload.sender.endpointId,
                     payload = ChatPayload.Status(
                         id = UUID.randomUUID().toString(),
+                        senderDeviceId = deviceIdProvider.deviceId.value,
                         displayName = profile.displayName,
                         displayColorId = profile.displayColor.id,
                         roomId = _state.value.joinedRoomId?.value

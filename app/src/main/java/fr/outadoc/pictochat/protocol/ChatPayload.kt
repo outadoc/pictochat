@@ -12,12 +12,15 @@ import kotlinx.serialization.protobuf.ProtoNumber
 sealed class ChatPayload {
 
     abstract val id: String
+    abstract val senderDeviceId: String
 
     @Serializable
     @SerialName("status_request")
     data class StatusRequest(
         @ProtoNumber(1)
         override val id: String,
+        @ProtoNumber(2)
+        override val senderDeviceId: String,
     ) : ChatPayload()
 
     @Serializable
@@ -26,10 +29,12 @@ sealed class ChatPayload {
         @ProtoNumber(1)
         override val id: String,
         @ProtoNumber(2)
-        val displayName: String,
+        override val senderDeviceId: String,
         @ProtoNumber(3)
-        val displayColorId: Int,
+        val displayName: String,
         @ProtoNumber(4)
+        val displayColorId: Int,
+        @ProtoNumber(5)
         val roomId: Int? = null,
     ) : ChatPayload()
 
@@ -39,13 +44,15 @@ sealed class ChatPayload {
         @ProtoNumber(1)
         override val id: String,
         @ProtoNumber(2)
-        val roomId: Int,
+        override val senderDeviceId: String,
         @ProtoNumber(3)
+        val roomId: Int,
+        @ProtoNumber(4)
         @Serializable(with = InstantIso8601Serializer::class)
         val sentAt: Instant,
-        @ProtoNumber(4)
-        val text: String,
         @ProtoNumber(5)
+        val text: String,
+        @ProtoNumber(6)
         val drawing: Drawing,
     ) : ChatPayload()
 }

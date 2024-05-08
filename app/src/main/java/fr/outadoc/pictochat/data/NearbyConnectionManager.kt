@@ -91,11 +91,11 @@ class NearbyConnectionManager(
         )
 
         stateLock.withLock {
-            Log.d(TAG, "onConnectionInitiated: Current state: $state")
-
             delay(1.seconds)
 
             _state.update { state ->
+                Log.d(TAG, "onConnectionInitiated: Current state: $state")
+
                 val connectedDevice = state.connectedEndpoints
                     .firstOrNull { connectedDevice ->
                         connectedDevice.deviceId == device.deviceId
