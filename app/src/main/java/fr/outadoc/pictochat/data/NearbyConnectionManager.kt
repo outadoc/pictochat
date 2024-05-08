@@ -252,13 +252,22 @@ class NearbyConnectionManager(
     override suspend fun onPayloadReceived(endpointId: String, payload: Payload) {
         val proto = ProtoBuf.decodeFromByteArray<ChatPayload>(payload.asBytes()!!)
         Log.d(TAG, "onPayloadReceived: $endpointId, payload: $proto")
-        stateLock.withLock {
-            _payloadFlow.tryEmit(
-                ReceivedPayload(
-                    sender = _state.value.connectedEndpoints.first { it.endpointId == endpointId },
-                    data = proto
-                )
+
+        val sender = stateLock.withLock {
+            _state.value.connectedEndpoints.first { it.endpointId == endpointId }
+        }
+
+        _payloadFlow.tryEmit(
+            ReceivedPayload(
+                sender = _state.value.connectedEndpoints.first { it.endpointId == endpointId },
+                data = proto
             )
+        )
+
+        _state.value.connectedEndpoints.forEach { device ->
+            if (device.endpointId != endpointId && device.deviceId != sender.deviceId) {
+                sendPayload(device.endpointId, proto)
+            }
         }
     }
 
@@ -275,6 +284,14 @@ class NearbyConnectionManager(
 
             launch {
                 Log.d(TAG, "connect: deviceId=${deviceIdProvider.deviceId}")
+
+                _state.update { state ->
+                    state.copy(
+                        isOnline = true,
+                        connectedEndpoints = persistentSetOf(),
+                        approvedEndpoints = persistentSetOf()
+                    )
+                }
 
                 launch(Dispatchers.IO) {
                     Log.d(TAG, "startDiscovery")
@@ -310,14 +327,6 @@ class NearbyConnectionManager(
                                     .build()
                             )
                             .await()
-                    }
-
-                    _state.update { state ->
-                        state.copy(
-                            isOnline = true,
-                            connectedEndpoints = persistentSetOf(),
-                            approvedEndpoints = persistentSetOf()
-                        )
                     }
 
                     try {
