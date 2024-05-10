@@ -19,7 +19,6 @@ import fr.outadoc.pictochat.domain.RemoteDevice
 import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.protocol.ChatPayload
-import fr.outadoc.pictochat.protocol.EndpointInfoPayload
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,13 +40,18 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.util.UUID
+import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
+
 
 @OptIn(ExperimentalSerializationApi::class, ExperimentalStdlibApi::class)
 class AwareConnectionManager(
     applicationContext: Context,
     private val deviceIdProvider: DeviceIdProvider,
-    private val clock: Clock
+    private val clock: Clock,
 ) : ConnectionManager, NearbyLifecycleCallbacks {
 
     private var _state: MutableStateFlow<ConnectionManager.State> =
@@ -69,16 +73,9 @@ class AwareConnectionManager(
 
     @SuppressLint("MissingPermission")
     override suspend fun onAttached(session: WifiAwareSession) {
-        val endpointInfo = EndpointInfoPayload(
-            deviceId = deviceIdProvider.deviceId.value
-        )
-
-        val payload = ProtoBuf.encodeToByteArray(endpointInfo)
-
         session.publish(
             PublishConfig.Builder()
                 .setServiceName(PICTOCHAT_SERVICE_ID)
-                .setServiceSpecificInfo(payload)
                 .build(),
             discoverySessionCallback,
             null
@@ -87,7 +84,6 @@ class AwareConnectionManager(
         session.subscribe(
             SubscribeConfig.Builder()
                 .setServiceName(PICTOCHAT_SERVICE_ID)
-                .setServiceSpecificInfo(payload)
                 .build(),
             discoverySessionCallback,
             null
@@ -120,7 +116,7 @@ class AwareConnectionManager(
             discoverySession?.sendMessage(
                 peerHandle,
                 helloPayload.id.hashCode(),
-                ProtoBuf.encodeToByteArray<ChatPayload>(helloPayload)
+                compress(ProtoBuf.encodeToByteArray<ChatPayload>(helloPayload))
             )
         }
     }
@@ -136,6 +132,7 @@ class AwareConnectionManager(
     }
 
     override suspend fun onMessageSendFailed(messageId: Int) {
+
     }
 
     override suspend fun onMessageSendSucceeded(messageId: Int) {
@@ -143,7 +140,7 @@ class AwareConnectionManager(
 
     override suspend fun onMessageReceived(peerHandle: PeerHandle, message: ByteArray) {
         stateLock.withLock {
-            val payload = ProtoBuf.decodeFromByteArray<ChatPayload>(message)
+            val payload = ProtoBuf.decodeFromByteArray<ChatPayload>(uncompress(message))
 
             Log.d(TAG, "onMessageReceived: $peerHandle, payload: $payload")
 
@@ -161,13 +158,16 @@ class AwareConnectionManager(
                 )
 
                 state.copy(
-                    connectedEndpoints = state.connectedEndpoints.add(sender)
+                    connectedEndpoints = state.connectedEndpoints
+                        .removeAll { it.deviceId == sender.deviceId }
+                        .add(sender)
                 )
             }
         }
     }
 
     override suspend fun onAwareSessionTerminated() {
+        close()
     }
 
     override suspend fun connect() {
@@ -200,8 +200,8 @@ class AwareConnectionManager(
 
     @OptIn(ExperimentalSerializationApi::class)
     override suspend fun sendPayload(endpointId: RemoteDevice, payload: ChatPayload) {
-        val protoBytes = ProtoBuf.encodeToByteArray(payload)
-        Log.d(TAG, "Sending payload to $endpointId: $payload")
+        val protoBytes = compress(ProtoBuf.encodeToByteArray(payload))
+        Log.d(TAG, "Sending payload (${protoBytes.size} bytes) to $endpointId: $payload")
 
         discoverySession?.sendMessage(
             endpointId.endpointId,
@@ -223,6 +223,32 @@ class AwareConnectionManager(
             )
         }
     }
+
+    /**
+     *Compresses a byte array using GZIP.
+     *
+     * @param data The byte array to compress.
+     * @return The compressed byte array.
+     */
+    private fun compress(data: ByteArray): ByteArray {
+        val bos = ByteArrayOutputStream()
+        GZIPOutputStream(bos).use { it.write(data) }
+        return bos.toByteArray()
+    }
+
+    /**
+     * Uncompresses a byte array using GZIP.
+     *
+     * @param compressed The compressed byte array.
+     * @return The uncompressed byte array.
+     */
+    private fun uncompress(compressed: ByteArray): ByteArray {
+        val bis = ByteArrayInputStream(compressed)
+        GZIPInputStream(bis).use {
+            return it.readBytes()
+        }
+    }
+
 
     private val discoverySessionCallback = object : DiscoverySessionCallback() {
 
