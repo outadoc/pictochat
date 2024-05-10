@@ -2,7 +2,6 @@ package fr.outadoc.pictochat
 
 import android.app.Application
 import android.content.Context
-import android.os.StrictMode
 import fr.outadoc.pictochat.data.AwareConnectionManager
 import fr.outadoc.pictochat.data.NearbyLobbyManager
 import fr.outadoc.pictochat.domain.ConnectionManager
@@ -24,9 +23,6 @@ class Application : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        if (BuildConfig.DEBUG) {
-            StrictMode.enableDefaults()
-        }
 
         startKoin {
             modules(commonModule)

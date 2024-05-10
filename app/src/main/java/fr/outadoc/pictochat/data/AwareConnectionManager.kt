@@ -183,7 +183,7 @@ class AwareConnectionManager(
     }
 
     override suspend fun onAwareSessionTerminated() {
-        close()
+        doConnect()
     }
 
     override suspend fun connect() {
@@ -191,7 +191,7 @@ class AwareConnectionManager(
             _connectionScope?.cancel()
             _connectionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-            launch(Dispatchers.IO) {
+            _connectionScope?.launch {
                 Log.d(TAG, "connect: deviceId=${deviceIdProvider.deviceId}")
 
                 _state.update { state ->
@@ -201,8 +201,7 @@ class AwareConnectionManager(
                     )
                 }
 
-                // TODO use another handler
-                connectionsClient.attach(attachCallback, null)
+                doConnect()
 
                 try {
                     awaitCancellation()
@@ -212,6 +211,11 @@ class AwareConnectionManager(
                 }
             }
         }
+    }
+
+    private fun doConnect() {
+        // TODO use another handler
+        connectionsClient.attach(attachCallback, null)
     }
 
     @OptIn(ExperimentalSerializationApi::class)
