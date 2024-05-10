@@ -1,6 +1,6 @@
 package fr.outadoc.pictochat.ui.room
 
-import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,7 +22,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
-import androidx.core.graphics.createBitmap
 import fr.outadoc.pictochat.domain.ChatEvent
 import fr.outadoc.pictochat.domain.ProfileColor
 import fr.outadoc.pictochat.preferences.DeviceId
@@ -136,22 +135,12 @@ private fun ChatEvent(
                         )
 
                         val bitmap = remember(event.message) {
-                            createBitmap(
-                                width = event.message.bitmapWidth,
-                                height = event.message.bitmapHeight,
-                                config = Bitmap.Config.ALPHA_8,
-                            )
-                                .apply {
-                                    setPixels(
-                                        /* pixels = */ event.message.bitmap,
-                                        /* offset = */ 0,
-                                        /* stride = */ event.message.bitmapWidth,
-                                        /* x = */ 0,
-                                        /* y = */ 0,
-                                        /* width = */ event.message.bitmapWidth,
-                                        /* height = */ event.message.bitmapHeight
-                                    )
-                                }
+                            BitmapFactory
+                                .decodeByteArray(
+                                    event.message.drawing,
+                                    0,
+                                    event.message.drawing.size
+                                )
                                 .asImageBitmap()
                         }
 

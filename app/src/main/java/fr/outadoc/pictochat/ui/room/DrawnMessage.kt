@@ -13,7 +13,6 @@ import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.ImageBitmapConfig
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
@@ -49,7 +48,6 @@ private fun DrawnMessagePreview() {
     val bitmap = ImageBitmap(
         width = InputConfig.CanvasSize.width.toInt(),
         height = InputConfig.CanvasSize.height.toInt(),
-        config = ImageBitmapConfig.Alpha8
     )
 
     val canvas = Canvas(bitmap)

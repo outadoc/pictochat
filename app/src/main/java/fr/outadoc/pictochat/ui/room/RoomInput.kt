@@ -1,5 +1,6 @@
 package fr.outadoc.pictochat.ui.room
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,10 +33,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.ImageBitmapConfig
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
-import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -49,13 +49,14 @@ import androidx.compose.ui.unit.dp
 import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.ui.theme.PictoChatTextStyle
 import fr.outadoc.pictochat.ui.theme.toColor
+import java.io.ByteArrayOutputStream
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RoomInput(
     modifier: Modifier = Modifier,
     onSendMessage: (Message) -> Unit,
-    userProfile: UserProfile
+    userProfile: UserProfile,
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -72,7 +73,6 @@ fun RoomInput(
         ImageBitmap(
             width = InputConfig.CanvasSize.width.toInt(),
             height = InputConfig.CanvasSize.height.toInt(),
-            config = ImageBitmapConfig.Alpha8
         )
 
     val drawScope = CanvasDrawScope()
@@ -140,13 +140,22 @@ fun RoomInput(
                 }
             },
             onSendMessage = {
-                val pixelMap = bitmap.toPixelMap()
+                val pngBytes = ByteArrayOutputStream().use { buffer ->
+                    val compress = bitmap
+                        .asAndroidBitmap()
+                        .compress(Bitmap.CompressFormat.PNG, 80, buffer)
+
+                    if (!compress) {
+                        error("Failed to compress bitmap")
+                    }
+
+                    buffer.toByteArray()
+                }
+
                 onSendMessage(
                     Message(
                         contentDescription = message.text,
-                        bitmap = pixelMap.buffer,
-                        bitmapWidth = pixelMap.width,
-                        bitmapHeight = pixelMap.height
+                        bitmap = pngBytes
                     )
                 )
                 message = TextFieldValue()
@@ -212,7 +221,7 @@ private fun RoomInputCanvas(
     contentDescription: String,
     onLineDrawn: (Line) -> Unit,
     bitmap: ImageBitmap,
-    favoriteColor: Color
+    favoriteColor: Color,
 ) {
     var canvasWidthPx: Float? by remember { mutableStateOf(null) }
 

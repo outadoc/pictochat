@@ -137,9 +137,7 @@ private fun RoomScreenPreview() {
                 sender = DeviceId(1),
                 message = fr.outadoc.pictochat.domain.Message(
                     contentDescription = "Hello, world!",
-                    bitmap = intArrayOf(),
-                    bitmapWidth = 0,
-                    bitmapHeight = 0
+                    drawing = byteArrayOf()
                 )
             ),
             ChatEvent.Leave(

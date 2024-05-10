@@ -134,9 +134,7 @@ class NearbyLobbyManager(
             roomId = currentRoomId.value,
             text = message.contentDescription,
             drawing = Drawing(
-                width = message.bitmapWidth,
-                height = message.bitmapHeight,
-                data = message.bitmap
+                data = message.drawing
             )
         )
 
@@ -275,9 +273,7 @@ class NearbyLobbyManager(
                                 sender = sender,
                                 message = Message(
                                     contentDescription = payload.text,
-                                    bitmapWidth = payload.drawing.width,
-                                    bitmapHeight = payload.drawing.height,
-                                    bitmap = payload.drawing.data
+                                    drawing = payload.drawing.data
                                 )
                             )
                         )

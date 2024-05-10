@@ -5,9 +5,7 @@ import androidx.compose.runtime.Stable
 @Stable
 data class Message(
     val contentDescription: String,
-    val bitmap: IntArray,
-    val bitmapHeight: Int,
-    val bitmapWidth: Int
+    val bitmap: ByteArray
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -17,8 +15,6 @@ data class Message(
 
         if (contentDescription != other.contentDescription) return false
         if (!bitmap.contentEquals(other.bitmap)) return false
-        if (bitmapHeight != other.bitmapHeight) return false
-        if (bitmapWidth != other.bitmapWidth) return false
 
         return true
     }
@@ -26,8 +22,6 @@ data class Message(
     override fun hashCode(): Int {
         var result = contentDescription.hashCode()
         result = 31 * result + bitmap.contentHashCode()
-        result = 31 * result + bitmapHeight
-        result = 31 * result + bitmapWidth
         return result
     }
 }
