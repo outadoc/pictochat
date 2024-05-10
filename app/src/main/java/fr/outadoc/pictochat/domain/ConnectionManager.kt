@@ -17,11 +17,8 @@ interface ConnectionManager : Closeable {
 
     suspend fun sendPayload(endpointId: RemoteDevice, payload: ChatPayload)
 
-    /**
-     * @property connectedEndpoints Maps endpoint IDs to device IDs.
-     */
     data class State(
         val isOnline: Boolean = false,
-        val connectedEndpoints: PersistentSet<RemoteDevice> = persistentSetOf(),
+        val connectedPeers: PersistentSet<RemoteDevice> = persistentSetOf(),
     )
 }

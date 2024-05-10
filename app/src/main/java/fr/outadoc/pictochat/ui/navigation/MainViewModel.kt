@@ -49,7 +49,7 @@ class MainViewModel(
             State(
                 isOnline = lobbyState.isOnline,
                 roomStates = lobbyState.rooms,
-                nearbyUserCount = lobbyState.nearbyUserCount,
+                nearbyUserCount = lobbyState.connectedPeers.size,
                 currentDestination = when (internalState.navFlow) {
                     NavFlow.Main -> {
                         if (lobbyState.joinedRoomId != null) {

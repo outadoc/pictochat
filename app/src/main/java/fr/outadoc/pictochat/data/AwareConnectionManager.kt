@@ -119,13 +119,13 @@ class AwareConnectionManager(
                 ProtoBuf.decodeFromByteArray<EndpointInfoPayload>(serviceSpecificInfo)
 
             val sender = RemoteDevice(
-                endpointId = peerHandle,
+                peerHandle = peerHandle,
                 deviceId = DeviceId(decodedServiceSpecificInfo.deviceId)
             )
 
             _state.update { state ->
                 state.copy(
-                    connectedEndpoints = state.connectedEndpoints
+                    connectedPeers = state.connectedPeers
                         .removeAll { it.deviceId == sender.deviceId }
                         .add(sender)
                 )
@@ -149,7 +149,7 @@ class AwareConnectionManager(
         stateLock.withLock {
             _state.update { state ->
                 state.copy(
-                    connectedEndpoints = state.connectedEndpoints.removeAll { it.endpointId == peerHandle }
+                    connectedPeers = state.connectedPeers.removeAll { it.peerHandle == peerHandle }
                 )
             }
         }
@@ -169,7 +169,7 @@ class AwareConnectionManager(
             Log.d(TAG, "onMessageReceived: $peerHandle, payload: $payload")
 
             val sender = RemoteDevice(
-                endpointId = peerHandle,
+                peerHandle = peerHandle,
                 deviceId = DeviceId(payload.senderDeviceId)
             )
 
@@ -197,7 +197,7 @@ class AwareConnectionManager(
                 _state.update { state ->
                     state.copy(
                         isOnline = true,
-                        connectedEndpoints = persistentSetOf()
+                        connectedPeers = persistentSetOf()
                     )
                 }
 
@@ -224,7 +224,7 @@ class AwareConnectionManager(
         Log.d(TAG, "Sending payload (${protoBytes.size} bytes) to $endpointId: $payload")
 
         discoverySession?.sendMessage(
-            endpointId.endpointId,
+            endpointId.peerHandle,
             payload.id.hashCode(),
             protoBytes
         )
@@ -239,7 +239,7 @@ class AwareConnectionManager(
         _state.updateAndGet { state ->
             state.copy(
                 isOnline = false,
-                connectedEndpoints = persistentSetOf()
+                connectedPeers = persistentSetOf()
             )
         }
     }

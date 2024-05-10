@@ -16,10 +16,9 @@ interface LobbyManager : Closeable {
         val isOnline: Boolean,
         val userProfile: UserProfile,
         val knownProfiles: PersistentMap<DeviceId, UserProfile> = persistentMapOf(),
-        val connectedEndpoints: ImmutableSet<RemoteDevice>,
+        val connectedPeers: ImmutableSet<RemoteDevice>,
         val rooms: PersistentMap<RoomId, RoomState>,
         val joinedRoomId: RoomId?,
-        val nearbyUserCount: Int,
     )
 
     val state: Flow<State>

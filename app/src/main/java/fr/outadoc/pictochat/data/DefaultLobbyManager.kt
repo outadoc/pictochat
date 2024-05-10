@@ -18,6 +18,7 @@ import fr.outadoc.pictochat.randomInt
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toPersistentMap
+import kotlinx.collections.immutable.toPersistentSet
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -63,15 +64,27 @@ class DefaultLobbyManager(
         ) { connectionState, userProfile, internalState ->
             LobbyManager.State(
                 isOnline = connectionState.isOnline,
-                connectedEndpoints = connectionState.connectedEndpoints,
+                connectedPeers = connectionState.connectedPeers,
                 userProfile = userProfile,
                 knownProfiles = internalState.knownProfiles
                     .mapValues { it.value.userProfile }
                     .toPersistentMap()
                     .put(deviceIdProvider.deviceId, userProfile),
-                nearbyUserCount = connectionState.connectedEndpoints.size,
                 joinedRoomId = internalState.joinedRoomId,
                 rooms = internalState.rooms
+                    .mapValues { (_, roomState) ->
+                        roomState.copy(
+                            connectedDevices = roomState.connectedDevices
+                                .filter { deviceId ->
+                                    val isOwnDevice = deviceId == deviceIdProvider.deviceId
+                                    val isKnownPeer = connectionState.connectedPeers
+                                        .any { device -> device.deviceId == deviceId }
+                                    isOwnDevice || isKnownPeer
+                                }
+                                .toPersistentSet()
+                        )
+                    }
+                    .toPersistentMap()
             )
         }
             .distinctUntilChanged()
@@ -139,7 +152,7 @@ class DefaultLobbyManager(
         )
 
         // Send the message to all connected devices
-        connectionState.connectedEndpoints.forEach { device ->
+        connectionState.connectedPeers.forEach { device ->
             connectionManager.sendPayload(
                 endpointId = device,
                 payload = payload
@@ -176,7 +189,7 @@ class DefaultLobbyManager(
                             roomId = state.joinedRoomId?.value
                         )
 
-                        state.connectedEndpoints.forEach { endpoint ->
+                        state.connectedPeers.forEach { endpoint ->
                             connectionManager.sendPayload(
                                 endpointId = endpoint,
                                 payload = payload
