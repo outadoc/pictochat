@@ -3,7 +3,7 @@ package fr.outadoc.pictochat
 import android.app.Application
 import android.content.Context
 import fr.outadoc.pictochat.data.AwareConnectionManager
-import fr.outadoc.pictochat.data.NearbyLobbyManager
+import fr.outadoc.pictochat.data.DefaultLobbyManager
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
 import fr.outadoc.pictochat.preferences.AndroidDeviceNameProvider
@@ -35,7 +35,7 @@ class Application : Application() {
         single<DeviceNameProvider> { AndroidDeviceNameProvider(get()) }
         single<DeviceIdProvider> { DataStoreDeviceIdProvider(get()) }
         single<ConnectionManager> { AwareConnectionManager(get(), get(), get()) }
-        single<LobbyManager> { NearbyLobbyManager(get(), get(), get(), get()) }
+        single<LobbyManager> { DefaultLobbyManager(get(), get(), get(), get()) }
         single<LocalPreferencesRepository> { DataStoreLocalPreferencesRepository(get(), get()) }
 
         single { MainViewModel(get()) }

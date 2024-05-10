@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
-class NearbyLobbyManager(
+class DefaultLobbyManager(
     localPreferencesRepository: LocalPreferencesRepository,
     private val connectionManager: ConnectionManager,
     private val deviceIdProvider: DeviceIdProvider,
