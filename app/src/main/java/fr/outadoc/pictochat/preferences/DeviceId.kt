@@ -1,4 +1,4 @@
 package fr.outadoc.pictochat.preferences
 
 @JvmInline
-value class DeviceId(val value: String)
+value class DeviceId(val value: Int)

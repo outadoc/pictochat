@@ -20,6 +20,7 @@ import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.protocol.ChatPayload
 import fr.outadoc.pictochat.protocol.EndpointInfoPayload
+import fr.outadoc.pictochat.randomInt
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,7 +44,6 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.util.UUID
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
@@ -132,7 +132,7 @@ class AwareConnectionManager(
             }
 
             val helloPayload = ChatPayload.Hello(
-                id = UUID.randomUUID().toString(),
+                id = randomInt(),
                 senderDeviceId = deviceIdProvider.deviceId.value,
                 sentAt = clock.now()
             )

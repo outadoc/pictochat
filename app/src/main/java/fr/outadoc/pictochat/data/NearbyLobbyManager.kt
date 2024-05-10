@@ -14,6 +14,7 @@ import fr.outadoc.pictochat.preferences.LocalPreferencesRepository
 import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.protocol.ChatPayload
 import fr.outadoc.pictochat.protocol.Drawing
+import fr.outadoc.pictochat.randomInt
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toPersistentMap
@@ -28,7 +29,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import java.util.UUID
 
 class NearbyLobbyManager(
     localPreferencesRepository: LocalPreferencesRepository,
@@ -128,7 +128,7 @@ class NearbyLobbyManager(
         }
 
         val payload = ChatPayload.Message(
-            id = UUID.randomUUID().toString(),
+            id = randomInt(),
             senderDeviceId = deviceIdProvider.deviceId.value,
             sentAt = clock.now(),
             roomId = currentRoomId.value,
@@ -170,7 +170,7 @@ class NearbyLobbyManager(
                 launch {
                     state.collect { state ->
                         val payload = ChatPayload.Status(
-                            id = UUID.randomUUID().toString(),
+                            id = randomInt(),
                             senderDeviceId = deviceIdProvider.deviceId.value,
                             sentAt = clock.now(),
                             displayName = state.userProfile.displayName,

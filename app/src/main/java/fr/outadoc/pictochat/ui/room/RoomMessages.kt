@@ -181,7 +181,7 @@ private fun ChatEvent(
 private fun Map<DeviceId, UserProfile>.getProfile(deviceId: DeviceId): UserProfile {
     return remember(this, deviceId) {
         get(deviceId) ?: UserProfile(
-            displayName = deviceId.value,
+            displayName = "Unknown User",
             displayColor = ProfileColor.Default
         )
     }

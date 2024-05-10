@@ -5,23 +5,23 @@ import kotlinx.datetime.Instant
 
 sealed class ChatEvent {
 
-    abstract val id: String
+    abstract val id: Int
     abstract val timestamp: Instant
 
     data class Join(
-        override val id: String,
+        override val id: Int,
         override val timestamp: Instant,
         val deviceId: DeviceId,
     ) : ChatEvent()
 
     data class Leave(
-        override val id: String,
+        override val id: Int,
         override val timestamp: Instant,
         val deviceId: DeviceId,
     ) : ChatEvent()
 
     data class Message(
-        override val id: String,
+        override val id: Int,
         override val timestamp: Instant,
         val sender: DeviceId,
         val message: fr.outadoc.pictochat.domain.Message,

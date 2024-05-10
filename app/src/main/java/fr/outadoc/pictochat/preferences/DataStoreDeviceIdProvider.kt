@@ -3,11 +3,11 @@ package fr.outadoc.pictochat.preferences
 import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import fr.outadoc.pictochat.randomInt
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
-import java.util.UUID
 
 class DataStoreDeviceIdProvider(
     private val applicationContext: Context,
@@ -19,7 +19,7 @@ class DataStoreDeviceIdProvider(
         get() = cachedDeviceId ?: DeviceId(readOrGenerateDeviceId())
             .also { cachedDeviceId = it }
 
-    private fun readOrGenerateDeviceId(): String = runBlocking {
+    private fun readOrGenerateDeviceId(): Int = runBlocking {
         val deviceId = applicationContext.dataStore.data
             .map { prefs -> prefs[DEVICE_ID] }
             .first()
@@ -33,10 +33,9 @@ class DataStoreDeviceIdProvider(
         Log.d("DeviceIdProvider", "Our device ID is: $it")
     }
 
-    private fun generateDeviceId(): String = UUID.randomUUID().toString()
+    private fun generateDeviceId(): Int = randomInt()
 
     private companion object {
-        val DEVICE_ID = stringPreferencesKey("device_id")
+        val DEVICE_ID = intPreferencesKey("device_id_int")
     }
 }
-

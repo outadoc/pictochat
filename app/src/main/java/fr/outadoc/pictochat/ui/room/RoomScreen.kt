@@ -127,14 +127,14 @@ private fun RoomScreenPreview() {
         title = "Room 1",
         eventHistory = persistentListOf(
             ChatEvent.Join(
-                id = "1",
+                id = 1,
                 timestamp = Instant.parse("2021-09-01T12:00:00Z"),
-                deviceId = DeviceId("1")
+                deviceId = DeviceId(1)
             ),
             ChatEvent.Message(
-                id = "2",
+                id = 2,
                 timestamp = Instant.parse("2021-09-01T12:03:00Z"),
-                sender = DeviceId("1"),
+                sender = DeviceId(1),
                 message = fr.outadoc.pictochat.domain.Message(
                     contentDescription = "Hello, world!",
                     bitmap = intArrayOf(),
@@ -143,13 +143,13 @@ private fun RoomScreenPreview() {
                 )
             ),
             ChatEvent.Leave(
-                id = "3",
+                id = 3,
                 timestamp = Instant.parse("2021-09-01T12:05:00Z"),
-                deviceId = DeviceId("1")
+                deviceId = DeviceId(1)
             )
         ),
         knownProfiles = persistentMapOf(
-            DeviceId("1") to UserProfile(
+            DeviceId(1) to UserProfile(
                 displayName = "Alice",
                 displayColor = ProfileColor.Color3
             )

@@ -8,5 +8,5 @@ import kotlinx.serialization.protobuf.ProtoNumber
 @Serializable
 data class EndpointInfoPayload(
     @ProtoNumber(1)
-    val deviceId: String,
+    val deviceId: Int,
 )

@@ -1,7 +1,7 @@
 package fr.outadoc.pictochat.protocol
 
+import fr.outadoc.pictochat.InstantMsTimestampSerializer
 import kotlinx.datetime.Instant
-import kotlinx.datetime.serializers.InstantIso8601Serializer
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -11,19 +11,19 @@ import kotlinx.serialization.protobuf.ProtoNumber
 @Serializable
 sealed interface ChatPayload {
 
-    val id: String
+    val id: Int
     val sentAt: Instant
-    val senderDeviceId: String
+    val senderDeviceId: Int
 
     @Serializable
     @SerialName("hello")
     data class Hello(
         @ProtoNumber(1)
-        override val id: String,
+        override val id: Int,
         @ProtoNumber(2)
-        override val senderDeviceId: String,
+        override val senderDeviceId: Int,
         @ProtoNumber(3)
-        @Serializable(with = InstantIso8601Serializer::class)
+        @Serializable(with = InstantMsTimestampSerializer::class)
         override val sentAt: Instant,
     ) : ChatPayload
 
@@ -31,11 +31,11 @@ sealed interface ChatPayload {
     @SerialName("status")
     data class Status(
         @ProtoNumber(1)
-        override val id: String,
+        override val id: Int,
         @ProtoNumber(2)
-        override val senderDeviceId: String,
+        override val senderDeviceId: Int,
         @ProtoNumber(3)
-        @Serializable(with = InstantIso8601Serializer::class)
+        @Serializable(with = InstantMsTimestampSerializer::class)
         override val sentAt: Instant,
         @ProtoNumber(4)
         val displayName: String,
@@ -49,11 +49,11 @@ sealed interface ChatPayload {
     @SerialName("message")
     data class Message(
         @ProtoNumber(1)
-        override val id: String,
+        override val id: Int,
         @ProtoNumber(2)
-        override val senderDeviceId: String,
+        override val senderDeviceId: Int,
         @ProtoNumber(3)
-        @Serializable(with = InstantIso8601Serializer::class)
+        @Serializable(with = InstantMsTimestampSerializer::class)
         override val sentAt: Instant,
         @ProtoNumber(4)
         val roomId: Int,
