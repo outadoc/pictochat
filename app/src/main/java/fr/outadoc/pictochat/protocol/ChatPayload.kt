@@ -16,6 +16,18 @@ sealed interface ChatPayload {
     val senderDeviceId: String
 
     @Serializable
+    @SerialName("hello")
+    data class Hello(
+        @ProtoNumber(1)
+        override val id: String,
+        @ProtoNumber(2)
+        override val senderDeviceId: String,
+        @ProtoNumber(3)
+        @Serializable(with = InstantIso8601Serializer::class)
+        override val sentAt: Instant,
+    ) : ChatPayload
+
+    @Serializable
     @SerialName("status")
     data class Status(
         @ProtoNumber(1)

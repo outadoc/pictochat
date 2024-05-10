@@ -3,7 +3,7 @@ package fr.outadoc.pictochat
 import android.app.Application
 import android.content.Context
 import android.os.StrictMode
-import fr.outadoc.pictochat.data.NearbyConnectionManager
+import fr.outadoc.pictochat.data.AwareConnectionManager
 import fr.outadoc.pictochat.data.NearbyLobbyManager
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
@@ -38,7 +38,7 @@ class Application : Application() {
         single<Clock> { Clock.System }
         single<DeviceNameProvider> { AndroidDeviceNameProvider(get()) }
         single<DeviceIdProvider> { DataStoreDeviceIdProvider(get()) }
-        single<ConnectionManager> { NearbyConnectionManager(get(), get()) }
+        single<ConnectionManager> { AwareConnectionManager(get(), get()) }
         single<LobbyManager> { NearbyLobbyManager(get(), get(), get(), get()) }
         single<LocalPreferencesRepository> { DataStoreLocalPreferencesRepository(get(), get()) }
 

@@ -143,7 +143,7 @@ class NearbyLobbyManager(
         // Send the message to all connected devices
         connectionState.connectedEndpoints.forEach { device ->
             connectionManager.sendPayload(
-                endpointId = device.endpointId,
+                endpointId = device,
                 payload = payload
             )
         }
@@ -180,7 +180,7 @@ class NearbyLobbyManager(
 
                         state.connectedEndpoints.forEach { endpoint ->
                             connectionManager.sendPayload(
-                                endpointId = endpoint.endpointId,
+                                endpointId = endpoint,
                                 payload = payload
                             )
                         }
