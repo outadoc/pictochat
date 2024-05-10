@@ -192,6 +192,7 @@ class NearbyLobbyManager(
 
     private fun processPayload(payload: ReceivedPayload) {
         when (payload.data) {
+            is ChatPayload.Hello -> {}
             is ChatPayload.Status -> {
                 _state.update { state ->
                     val sender = DeviceId(payload.data.senderDeviceId)

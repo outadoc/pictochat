@@ -36,16 +36,18 @@ import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.Clock
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
+import java.util.UUID
 
 @OptIn(ExperimentalSerializationApi::class, ExperimentalStdlibApi::class)
 class AwareConnectionManager(
     applicationContext: Context,
     private val deviceIdProvider: DeviceIdProvider,
+    private val clock: Clock
 ) : ConnectionManager, NearbyLifecycleCallbacks {
 
     private var _state: MutableStateFlow<ConnectionManager.State> =
@@ -109,23 +111,17 @@ class AwareConnectionManager(
         matchFilter: List<ByteArray>,
     ) {
         stateLock.withLock {
-            val endpointInfo = try {
-                ProtoBuf.decodeFromByteArray<EndpointInfoPayload>(serviceSpecificInfo)
-            } catch (e: SerializationException) {
-                Log.e(TAG, "Failed to decode endpoint info", e)
-                return
-            }
-
-            val remoteDevice = RemoteDevice(
-                deviceId = DeviceId(endpointInfo.deviceId),
-                endpointId = peerHandle
+            val helloPayload = ChatPayload.Hello(
+                id = UUID.randomUUID().toString(),
+                senderDeviceId = deviceIdProvider.deviceId.value,
+                sentAt = clock.now()
             )
 
-            _state.update { state ->
-                state.copy(
-                    connectedEndpoints = state.connectedEndpoints.add(remoteDevice)
-                )
-            }
+            discoverySession?.sendMessage(
+                peerHandle,
+                helloPayload.id.hashCode(),
+                ProtoBuf.encodeToByteArray<ChatPayload>(helloPayload)
+            )
         }
     }
 
@@ -147,25 +143,26 @@ class AwareConnectionManager(
 
     override suspend fun onMessageReceived(peerHandle: PeerHandle, message: ByteArray) {
         stateLock.withLock {
-            val proto = ProtoBuf.decodeFromByteArray<ChatPayload>(message)
-            Log.d(TAG, "onMessageReceived: $peerHandle, payload: $proto")
+            val payload = ProtoBuf.decodeFromByteArray<ChatPayload>(message)
 
-            val sender = _state.value.connectedEndpoints.first { it.endpointId == peerHandle }
+            Log.d(TAG, "onMessageReceived: $peerHandle, payload: $payload")
 
-            _payloadFlow.tryEmit(
-                ReceivedPayload(
-                    sender = _state.value.connectedEndpoints.first { it.endpointId == peerHandle },
-                    data = proto
+            _state.update { state ->
+                val sender = RemoteDevice(
+                    endpointId = peerHandle,
+                    deviceId = DeviceId(payload.senderDeviceId)
                 )
-            )
 
-            _state.value.connectedEndpoints.forEach { device ->
-                if (device.endpointId != peerHandle && device.deviceId != sender.deviceId) {
-                    sendPayload(
-                        endpointId = device,
-                        payload = proto
+                _payloadFlow.tryEmit(
+                    ReceivedPayload(
+                        sender = sender,
+                        data = payload
                     )
-                }
+                )
+
+                state.copy(
+                    connectedEndpoints = state.connectedEndpoints.add(sender)
+                )
             }
         }
     }
@@ -206,11 +203,11 @@ class AwareConnectionManager(
         val protoBytes = ProtoBuf.encodeToByteArray(payload)
         Log.d(TAG, "Sending payload to $endpointId: $payload")
 
-        /*discoverySession?.sendMessage(
+        discoverySession?.sendMessage(
             endpointId.endpointId,
             payload.id.hashCode(),
             protoBytes
-        )*/
+        )
     }
 
     override fun close() {

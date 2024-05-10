@@ -38,7 +38,7 @@ class Application : Application() {
         single<Clock> { Clock.System }
         single<DeviceNameProvider> { AndroidDeviceNameProvider(get()) }
         single<DeviceIdProvider> { DataStoreDeviceIdProvider(get()) }
-        single<ConnectionManager> { AwareConnectionManager(get(), get()) }
+        single<ConnectionManager> { AwareConnectionManager(get(), get(), get()) }
         single<LobbyManager> { NearbyLobbyManager(get(), get(), get(), get()) }
         single<LocalPreferencesRepository> { DataStoreLocalPreferencesRepository(get(), get()) }
 
