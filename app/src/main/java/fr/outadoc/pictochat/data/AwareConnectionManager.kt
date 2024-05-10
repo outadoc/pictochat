@@ -19,6 +19,7 @@ import fr.outadoc.pictochat.domain.RemoteDevice
 import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.protocol.ChatPayload
+import fr.outadoc.pictochat.protocol.EndpointInfoPayload
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -73,9 +74,16 @@ class AwareConnectionManager(
 
     @SuppressLint("MissingPermission")
     override suspend fun onAttached(session: WifiAwareSession) {
+        val endpointInfo = EndpointInfoPayload(
+            deviceId = deviceIdProvider.deviceId.value
+        )
+
+        val payload = ProtoBuf.encodeToByteArray(endpointInfo)
+
         session.publish(
             PublishConfig.Builder()
                 .setServiceName(PICTOCHAT_SERVICE_ID)
+                .setServiceSpecificInfo(payload)
                 .build(),
             discoverySessionCallback,
             null
@@ -107,6 +115,22 @@ class AwareConnectionManager(
         matchFilter: List<ByteArray>,
     ) {
         stateLock.withLock {
+            val decodedServiceSpecificInfo =
+                ProtoBuf.decodeFromByteArray<EndpointInfoPayload>(serviceSpecificInfo)
+
+            val sender = RemoteDevice(
+                endpointId = peerHandle,
+                deviceId = DeviceId(decodedServiceSpecificInfo.deviceId)
+            )
+
+            _state.update { state ->
+                state.copy(
+                    connectedEndpoints = state.connectedEndpoints
+                        .removeAll { it.deviceId == sender.deviceId }
+                        .add(sender)
+                )
+            }
+
             val helloPayload = ChatPayload.Hello(
                 id = UUID.randomUUID().toString(),
                 senderDeviceId = deviceIdProvider.deviceId.value,
@@ -144,25 +168,17 @@ class AwareConnectionManager(
 
             Log.d(TAG, "onMessageReceived: $peerHandle, payload: $payload")
 
-            _state.update { state ->
-                val sender = RemoteDevice(
-                    endpointId = peerHandle,
-                    deviceId = DeviceId(payload.senderDeviceId)
-                )
+            val sender = RemoteDevice(
+                endpointId = peerHandle,
+                deviceId = DeviceId(payload.senderDeviceId)
+            )
 
-                _payloadFlow.tryEmit(
-                    ReceivedPayload(
-                        sender = sender,
-                        data = payload
-                    )
+            _payloadFlow.tryEmit(
+                ReceivedPayload(
+                    sender = sender,
+                    data = payload
                 )
-
-                state.copy(
-                    connectedEndpoints = state.connectedEndpoints
-                        .removeAll { it.deviceId == sender.deviceId }
-                        .add(sender)
-                )
-            }
+            )
         }
     }
 
