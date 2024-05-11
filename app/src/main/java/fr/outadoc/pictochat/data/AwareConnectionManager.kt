@@ -18,8 +18,13 @@ import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.protocol.ChatPayload
 import fr.outadoc.pictochat.protocol.EndpointInfoPayload
+import fr.outadoc.pictochat.protocol.PayloadFragment
 import fr.outadoc.pictochat.randomInt
+import kotlinx.collections.immutable.PersistentList
+import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.PersistentSet
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toPersistentSet
 import kotlinx.coroutines.CoroutineScope
@@ -27,6 +32,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -63,6 +69,7 @@ class AwareConnectionManager(
     private data class InternalState(
         val isOnline: Boolean = false,
         val connectedPeers: PersistentSet<RemoteDevice> = persistentSetOf(),
+        val partialFragments: PersistentMap<Int, PersistentList<PayloadFragment>> = persistentMapOf(),
     )
 
     private val _stateLock = Mutex()
@@ -156,11 +163,15 @@ class AwareConnectionManager(
                 sentAt = clock.now()
             )
 
-            _subDiscoverySession?.sendMessage(
-                peerHandle,
-                helloPayload.id.hashCode(),
-                compress(ProtoBuf.encodeToByteArray<ChatPayload>(helloPayload))
-            )
+            val fragments = encodePayloadToFragments(helloPayload)
+
+            fragments.forEach { fragment ->
+                _pubDiscoverySession?.sendMessage(
+                    peerHandle,
+                    randomInt(),
+                    ProtoBuf.encodeToByteArray(fragment)
+                )
+            }
         }
     }
 
@@ -183,12 +194,111 @@ class AwareConnectionManager(
 
     override suspend fun onMessageReceived(peerHandle: PeerHandle, message: ByteArray) {
         _stateLock.withLock {
-            val payload = ProtoBuf.decodeFromByteArray<ChatPayload>(decompress(message))
+            val fragment = ProtoBuf.decodeFromByteArray<PayloadFragment>(message)
 
-            Log.d(TAG, "onMessageReceived: $peerHandle, payload: $payload")
+            Log.d(TAG, "onMessageReceived: $peerHandle, payload: $fragment")
 
-            _payloadFlow.tryEmit(payload)
+            if (fragment.totalCount < 2) {
+                // Single-fragment payload, no need to keep and manipulate a state
+                tryDecodePayloadFragments(listOf(fragment))?.let { payload ->
+                    _payloadFlow.emit(payload)
+                }
+            }
+
+            val partialFragments: PersistentList<PayloadFragment> =
+                _state.value.partialFragments.getOrDefault(fragment.id, persistentListOf())
+
+            val updatedFragments: PersistentList<PayloadFragment> =
+                partialFragments.add(fragment)
+
+            val decoded = tryDecodePayloadFragments(updatedFragments)
+
+            _state.update { state ->
+                if (decoded != null) {
+                    // We have all fragments, emit the payload and forget the partial fragments
+                    _payloadFlow.emit(decoded)
+
+                    state.copy(
+                        partialFragments = state.partialFragments.remove(fragment.id)
+                    )
+                } else {
+                    // We still need more fragments, keep them in the state for now
+                    state.copy(
+                        partialFragments = state.partialFragments.put(fragment.id, updatedFragments)
+                    )
+                }
+            }
         }
+    }
+
+    private fun tryDecodePayloadFragments(fragments: List<PayloadFragment>): ChatPayload? {
+        if (fragments.isEmpty()) {
+            error("No fragments to decode")
+        }
+
+        val first = fragments.first()
+        val totalFragments = first.totalCount
+        val totalExpectedBytes = first.totalBytes
+
+        // We assume that the list all concern the same payload without checking their IDs explicitly
+
+        val orders = fragments
+            .map { it.order }
+            .sorted()
+            .distinct()
+
+        if (orders.size > totalFragments) {
+            Log.w(TAG, "Expected only $totalFragments fragments, got: $orders")
+            return null
+        }
+
+        if (orders.size < totalFragments) {
+            Log.w(TAG, "Still missing fragments, expected $totalFragments, got: $orders")
+            return null
+        }
+
+        val buffer = ByteArray(totalExpectedBytes)
+        var lastOffset = 0
+
+        fragments
+            .sortedBy { it.order }
+            .distinctBy { it.order }
+            .forEach { fragment ->
+                fragment.data.copyInto(
+                    destination = buffer,
+                    destinationOffset = lastOffset
+                )
+
+                lastOffset = fragment.data.size
+            }
+
+        return ProtoBuf.decodeFromByteArray(decompress(buffer))
+    }
+
+    private fun encodePayloadToFragments(payload: ChatPayload): List<PayloadFragment> {
+        val payloadBytes = compress(ProtoBuf.encodeToByteArray(payload))
+        val totalBytes = payloadBytes.size
+
+        val maxFragmentSize: Int = 127
+
+        val totalFragments: Int = (totalBytes / maxFragmentSize) + 1
+
+        val fragments = (0 until totalFragments).map { fragmentIndex ->
+            val start = fragmentIndex * maxFragmentSize
+            val end = start + maxFragmentSize
+
+            val fragmentData = payloadBytes.sliceArray(start until (end.coerceAtMost(totalBytes)))
+
+            PayloadFragment(
+                id = payload.id,
+                order = fragmentIndex,
+                totalCount = totalFragments,
+                totalBytes = totalBytes,
+                data = fragmentData
+            )
+        }
+
+        return fragments
     }
 
     override suspend fun onAwareSessionTerminated() {
@@ -235,16 +345,24 @@ class AwareConnectionManager(
         }
     }
 
-    private fun sendPayloadTo(destination: PeerHandle, payload: ChatPayload) {
-        val protoBytes = compress(ProtoBuf.encodeToByteArray(payload))
+    private suspend fun sendPayloadTo(destination: PeerHandle, payload: ChatPayload) {
+        val fragments = encodePayloadToFragments(payload)
+        val firstFragment = fragments.first()
 
-        Log.d(TAG, "Sending payload (${protoBytes.size} bytes) to $destination: $payload")
-
-        _subDiscoverySession?.sendMessage(
-            destination,
-            payload.id.hashCode(),
-            protoBytes
+        Log.d(
+            TAG,
+            "Sending payload (${firstFragment.totalBytes} bytes split into ${firstFragment.totalCount} fragments) to $destination: $payload"
         )
+
+        fragments.forEach { fragment ->
+            val protoBytes = ProtoBuf.encodeToByteArray(fragment)
+            _pubDiscoverySession?.sendMessage(
+                destination,
+                randomInt(),
+                protoBytes
+            )
+            delay(100)
+        }
     }
 
     override fun close() {
@@ -389,5 +507,19 @@ class AwareConnectionManager(
     companion object {
         private const val PICTOCHAT_SERVICE_ID = "fr.outadoc.pictochat"
         private const val TAG = "NearbyConnectionManager"
+
+        /**
+         * The overhead of a single fragment in bytes.
+         */
+        private val fragmentLengthOverhead: Int =
+            ProtoBuf.encodeToByteArray(
+                PayloadFragment(
+                    id = 0,
+                    order = 0,
+                    totalCount = 0,
+                    totalBytes = 0,
+                    data = ByteArray(0)
+                )
+            ).size
     }
 }

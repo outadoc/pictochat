@@ -6,21 +6,23 @@ import kotlinx.serialization.protobuf.ProtoNumber
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class Packet(
+data class PayloadFragment(
     @ProtoNumber(1)
     val id: Int,
     @ProtoNumber(2)
     val order: Int,
     @ProtoNumber(3)
-    val total: Int,
+    val totalCount: Int,
     @ProtoNumber(4)
+    val totalBytes: Int,
+    @ProtoNumber(5)
     val data: ByteArray,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as Packet
+        other as PayloadFragment
 
         if (id != other.id) return false
         if (order != other.order) return false
