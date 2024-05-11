@@ -14,7 +14,6 @@ import android.net.wifi.aware.WifiAwareSession
 import android.util.Log
 import androidx.core.content.getSystemService
 import fr.outadoc.pictochat.domain.ConnectionManager
-import fr.outadoc.pictochat.domain.RemoteDevice
 import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.protocol.ChatPayload
@@ -56,6 +55,11 @@ class AwareConnectionManager(
     private val clock: Clock,
 ) : ConnectionManager, NearbyLifecycleCallbacks {
 
+    private data class RemoteDevice(
+        val peerHandle: PeerHandle,
+        val deviceId: DeviceId,
+    )
+
     private data class InternalState(
         val isOnline: Boolean = false,
         val connectedPeers: PersistentSet<RemoteDevice> = persistentSetOf(),
@@ -72,7 +76,7 @@ class AwareConnectionManager(
             )
         }
 
-    private val _payloadFlow = MutableSharedFlow<ReceivedPayload>(extraBufferCapacity = 32)
+    private val _payloadFlow = MutableSharedFlow<ChatPayload>(extraBufferCapacity = 32)
     override val payloadFlow = _payloadFlow.asSharedFlow()
 
     private val _awareClient = applicationContext.getSystemService<WifiAwareManager>()
@@ -183,17 +187,7 @@ class AwareConnectionManager(
 
             Log.d(TAG, "onMessageReceived: $peerHandle, payload: $payload")
 
-            val sender = RemoteDevice(
-                peerHandle = peerHandle,
-                deviceId = payload.source
-            )
-
-            _payloadFlow.tryEmit(
-                ReceivedPayload(
-                    sender = sender,
-                    data = payload
-                )
-            )
+            _payloadFlow.tryEmit(payload)
         }
     }
 

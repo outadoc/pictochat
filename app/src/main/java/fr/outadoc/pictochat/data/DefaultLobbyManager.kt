@@ -151,7 +151,6 @@ class DefaultLobbyManager(
 
         // Also show the message locally
         processReceivedMessage(
-            sender = deviceIdProvider.deviceId,
             payload = payload
         )
     }
@@ -186,15 +185,15 @@ class DefaultLobbyManager(
         }
     }
 
-    private fun processPayload(payload: ReceivedPayload) {
-        when (payload.data) {
+    private fun processPayload(payload: ChatPayload) {
+        when (payload) {
             is ChatPayload.Hello -> {}
             is ChatPayload.Status -> {
                 _state.update { state ->
-                    val sender = payload.data.source
+                    val sender = payload.source
                     val existingProfile: UpdatedUserProfile? = state.knownProfiles[sender]
 
-                    if (existingProfile != null && existingProfile.updatedAt > payload.data.sentAt) {
+                    if (existingProfile != null && existingProfile.updatedAt > payload.sentAt) {
                         return@update state
                     }
 
@@ -204,10 +203,10 @@ class DefaultLobbyManager(
                             .put(
                                 sender,
                                 UpdatedUserProfile(
-                                    updatedAt = payload.data.sentAt,
+                                    updatedAt = payload.sentAt,
                                     UserProfile(
-                                        displayName = payload.data.displayName,
-                                        displayColor = ProfileColor.fromId(payload.data.displayColorId)
+                                        displayName = payload.displayName,
+                                        displayColor = ProfileColor.fromId(payload.displayColorId)
                                     )
                                 )
                             ),
@@ -215,7 +214,7 @@ class DefaultLobbyManager(
                         rooms = state.rooms
                             .mapValues { (id, roomState) ->
                                 when (id) {
-                                    payload.data.roomId -> {
+                                    payload.roomId -> {
                                         roomState.copy(
                                             connectedDevices = roomState.connectedDevices
                                                 .add(sender)
@@ -237,15 +236,12 @@ class DefaultLobbyManager(
 
             is ChatPayload.Message -> {
                 // Received a message from someone else, process it
-                processReceivedMessage(
-                    sender = payload.sender.deviceId,
-                    payload = payload.data
-                )
+                processReceivedMessage(payload = payload)
             }
         }
     }
 
-    private fun processReceivedMessage(sender: DeviceId, payload: ChatPayload.Message) {
+    private fun processReceivedMessage(payload: ChatPayload.Message) {
         _state.update { state ->
             val roomId = RoomId(payload.roomId)
             val roomState = state.rooms[roomId]
@@ -268,7 +264,7 @@ class DefaultLobbyManager(
                             ChatEvent.Message(
                                 id = payload.id,
                                 timestamp = payload.sentAt,
-                                sender = sender,
+                                sender = payload.source,
                                 message = Message(
                                     contentDescription = payload.contentDescription,
                                     drawing = payload.drawing
