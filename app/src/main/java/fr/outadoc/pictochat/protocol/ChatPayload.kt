@@ -1,6 +1,8 @@
 package fr.outadoc.pictochat.protocol
 
 import fr.outadoc.pictochat.InstantMsTimestampSerializer
+import fr.outadoc.pictochat.domain.RoomId
+import fr.outadoc.pictochat.preferences.DeviceId
 import kotlinx.datetime.Instant
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
@@ -13,7 +15,7 @@ sealed interface ChatPayload {
 
     val id: Int
     val sentAt: Instant
-    val senderDeviceId: Int
+    val senderDeviceId: DeviceId
 
     @Serializable
     @SerialName("hello")
@@ -21,7 +23,7 @@ sealed interface ChatPayload {
         @ProtoNumber(1)
         override val id: Int,
         @ProtoNumber(2)
-        override val senderDeviceId: Int,
+        override val senderDeviceId: DeviceId,
         @ProtoNumber(3)
         @Serializable(with = InstantMsTimestampSerializer::class)
         override val sentAt: Instant,
@@ -33,7 +35,7 @@ sealed interface ChatPayload {
         @ProtoNumber(1)
         override val id: Int,
         @ProtoNumber(2)
-        override val senderDeviceId: Int,
+        override val senderDeviceId: DeviceId,
         @ProtoNumber(3)
         @Serializable(with = InstantMsTimestampSerializer::class)
         override val sentAt: Instant,
@@ -42,7 +44,7 @@ sealed interface ChatPayload {
         @ProtoNumber(5)
         val displayColorId: Int,
         @ProtoNumber(6)
-        val roomId: Int? = null,
+        val roomId: RoomId? = null,
     ) : ChatPayload
 
     @Serializable
@@ -51,7 +53,7 @@ sealed interface ChatPayload {
         @ProtoNumber(1)
         override val id: Int,
         @ProtoNumber(2)
-        override val senderDeviceId: Int,
+        override val senderDeviceId: DeviceId,
         @ProtoNumber(3)
         @Serializable(with = InstantMsTimestampSerializer::class)
         override val sentAt: Instant,

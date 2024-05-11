@@ -134,7 +134,7 @@ class AwareConnectionManager(
 
             val helloPayload = ChatPayload.Hello(
                 id = randomInt(),
-                senderDeviceId = deviceIdProvider.deviceId.value,
+                senderDeviceId = deviceIdProvider.deviceId,
                 sentAt = clock.now()
             )
 
@@ -165,13 +165,13 @@ class AwareConnectionManager(
 
     override suspend fun onMessageReceived(peerHandle: PeerHandle, message: ByteArray) {
         _stateLock.withLock {
-            val payload = ProtoBuf.decodeFromByteArray<ChatPayload>(uncompress(message))
+            val payload = ProtoBuf.decodeFromByteArray<ChatPayload>(decompress(message))
 
             Log.d(TAG, "onMessageReceived: $peerHandle, payload: $payload")
 
             val sender = RemoteDevice(
                 peerHandle = peerHandle,
-                deviceId = DeviceId(payload.senderDeviceId)
+                deviceId = payload.senderDeviceId
             )
 
             _payloadFlow.tryEmit(
@@ -268,12 +268,12 @@ class AwareConnectionManager(
     }
 
     /**
-     * Uncompresses a byte array using GZIP.
+     * Decompresses a byte array using GZIP.
      *
      * @param compressed The compressed byte array.
      * @return The uncompressed byte array.
      */
-    private fun uncompress(compressed: ByteArray): ByteArray {
+    private fun decompress(compressed: ByteArray): ByteArray {
         val bis = ByteArrayInputStream(compressed)
         GZIPInputStream(bis).use {
             return it.readBytes()
@@ -294,7 +294,7 @@ class AwareConnectionManager(
             _connectionScope?.launch(Dispatchers.IO) {
                 Log.d(
                     TAG,
-                    "onMessageReceived(peerHandle=$peerHandle, message=${message?.toHexString()})"
+                    "onMessageReceived(peerHandle=$peerHandle, message=${message.toHexString()})"
                 )
                 this@AwareConnectionManager.onMessageReceived(peerHandle, message)
             }

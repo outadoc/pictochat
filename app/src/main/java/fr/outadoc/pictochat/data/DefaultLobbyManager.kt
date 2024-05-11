@@ -142,7 +142,7 @@ class DefaultLobbyManager(
 
         val payload = ChatPayload.Message(
             id = randomInt(),
-            senderDeviceId = deviceIdProvider.deviceId.value,
+            senderDeviceId = deviceIdProvider.deviceId,
             sentAt = clock.now(),
             roomId = currentRoomId.value,
             text = message.contentDescription,
@@ -182,11 +182,11 @@ class DefaultLobbyManager(
                     state.collect { state ->
                         val payload = ChatPayload.Status(
                             id = randomInt(),
-                            senderDeviceId = deviceIdProvider.deviceId.value,
+                            senderDeviceId = deviceIdProvider.deviceId,
                             sentAt = clock.now(),
                             displayName = state.userProfile.displayName,
                             displayColorId = state.userProfile.displayColor.id,
-                            roomId = state.joinedRoomId?.value
+                            roomId = state.joinedRoomId
                         )
 
                         state.connectedPeers.forEach { endpoint ->
@@ -206,7 +206,7 @@ class DefaultLobbyManager(
             is ChatPayload.Hello -> {}
             is ChatPayload.Status -> {
                 _state.update { state ->
-                    val sender = DeviceId(payload.data.senderDeviceId)
+                    val sender = payload.data.senderDeviceId
                     val existingProfile: UpdatedUserProfile? = state.knownProfiles[sender]
 
                     if (existingProfile != null && existingProfile.updatedAt > payload.data.sentAt) {
@@ -229,7 +229,7 @@ class DefaultLobbyManager(
                         // Update the rooms' connected devices
                         rooms = state.rooms
                             .mapValues { (id, roomState) ->
-                                when (id.value) {
+                                when (id) {
                                     payload.data.roomId -> {
                                         roomState.copy(
                                             connectedDevices = roomState.connectedDevices
