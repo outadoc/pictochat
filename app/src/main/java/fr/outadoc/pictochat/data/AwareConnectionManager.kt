@@ -32,7 +32,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -273,10 +272,12 @@ class AwareConnectionManager(
                     destinationOffset = lastOffset
                 )
 
-                lastOffset = fragment.data.size
+                lastOffset += fragment.data.size
             }
 
-        return ProtoBuf.decodeFromByteArray<ChatPayload>(decompress(buffer))
+        val decompressed = decompress(buffer)
+
+        return ProtoBuf.decodeFromByteArray<ChatPayload>(decompressed)
     }
 
     private fun encodePayloadToFragments(payload: ChatPayload): List<PayloadFragment> {
@@ -366,7 +367,6 @@ class AwareConnectionManager(
                 randomInt(),
                 protoBytes
             )
-            delay(100)
         }
     }
 
