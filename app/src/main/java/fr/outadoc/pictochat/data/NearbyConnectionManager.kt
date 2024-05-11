@@ -107,32 +107,14 @@ class NearbyConnectionManager(
 
         val device = RemoteDevice(
             endpointId = endpointId,
-            deviceId = DeviceId(decoded.deviceId)
+            deviceId = decoded.deviceId
         )
 
         stateLock.withLock {
-            delay(1.seconds)
-
             _state.update { state ->
                 Log.d(TAG, "onConnectionInitiated: Current state: $state")
 
-                val connectedDevice = state.connectedPeers
-                    .firstOrNull { connectedDevice ->
-                        connectedDevice.deviceId == device.deviceId
-                    }
-
-                if (connectedDevice != null) {
-                    Log.w(
-                        TAG,
-                        "onConnectionInitiated: $device is already known as $connectedDevice, closing existing connection"
-                    )
-                    connectionsClient.disconnectFromEndpoint(connectedDevice.endpointId)
-                }
-
                 state.copy(
-                    connectedPeers = connectedDevice?.let {
-                        state.connectedPeers.remove(connectedDevice)
-                    } ?: state.connectedPeers,
                     knownPeers = state.knownPeers.put(endpointId, device.deviceId)
                 )
             }
@@ -213,27 +195,12 @@ class NearbyConnectionManager(
 
             val discoveredDevice = RemoteDevice(
                 endpointId = endpointId,
-                deviceId = DeviceId(decoded.deviceId)
+                deviceId = decoded.deviceId
             )
 
             Log.i(TAG, "onEndpointFound: $discoveredDevice, got payload $decoded")
 
-            if (_state.value.connectedPeers.any { connectedDevice -> connectedDevice.deviceId == discoveredDevice.deviceId }) {
-                Log.w(TAG, "Ignoring $discoveredDevice, already connected")
-                return
-            }
-
-            val myDeviceId = deviceIdProvider.deviceId.value
-
-            if (myDeviceId.hashCode() > discoveredDevice.deviceId.hashCode()) {
-                Log.w(
-                    TAG,
-                    "Ignoring $discoveredDevice, our device ID is greater; waiting for connection request"
-                )
-                return
-            }
-
-            val payload = EndpointInfoPayload(deviceId = myDeviceId)
+            val payload = EndpointInfoPayload(deviceId = deviceIdProvider.deviceId)
 
             Log.i(TAG, "Requesting connection to $discoveredDevice: sending $payload")
 
@@ -257,17 +224,21 @@ class NearbyConnectionManager(
 
     private suspend fun onPayloadReceived(endpointId: String, payload: Payload) {
         val proto = ProtoBuf.decodeFromByteArray<ChatPayload>(payload.asBytes()!!)
+
         Log.d(TAG, "onPayloadReceived: $endpointId, payload: $proto")
 
-        val sender = stateLock.withLock {
-            _state.value.connectedPeers.first { it.endpointId == endpointId }
-        }
+        stateLock.withLock {
+            val senderDeviceId: DeviceId? = _state.value.knownPeers[endpointId]
 
-        _payloadFlow.tryEmit(proto)
+            _payloadFlow.tryEmit(proto)
 
-        _state.value.connectedPeers.forEach { device ->
-            if (device.endpointId != endpointId && device.deviceId != sender.deviceId) {
-                sendPayloadTo(device.endpointId, proto)
+            _state.value.connectedPeers.forEach { device ->
+                if (device.endpointId != endpointId &&
+                    device.deviceId != senderDeviceId &&
+                    device.deviceId != proto.source
+                ) {
+                    sendPayloadTo(device.endpointId, proto)
+                }
             }
         }
     }
@@ -311,7 +282,7 @@ class NearbyConnectionManager(
 
                 launch {
                     val endpointInfo = EndpointInfoPayload(
-                        deviceId = deviceIdProvider.deviceId.value
+                        deviceId = deviceIdProvider.deviceId
                     )
 
                     Log.d(TAG, "startAdvertising: $endpointInfo")

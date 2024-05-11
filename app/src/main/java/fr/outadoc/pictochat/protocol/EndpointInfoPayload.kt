@@ -1,5 +1,6 @@
 package fr.outadoc.pictochat.protocol
 
+import fr.outadoc.pictochat.preferences.DeviceId
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
@@ -8,5 +9,5 @@ import kotlinx.serialization.protobuf.ProtoNumber
 @Serializable
 data class EndpointInfoPayload(
     @ProtoNumber(1)
-    val deviceId: Int,
+    val deviceId: DeviceId,
 )

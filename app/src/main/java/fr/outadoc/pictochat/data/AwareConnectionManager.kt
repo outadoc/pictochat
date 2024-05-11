@@ -94,7 +94,7 @@ class AwareConnectionManager(
     @SuppressLint("MissingPermission")
     private suspend fun onAttached(session: WifiAwareSession) {
         val endpointInfo = EndpointInfoPayload(
-            deviceId = deviceIdProvider.deviceId.value
+            deviceId = deviceIdProvider.deviceId
         )
 
         val payload = ProtoBuf.encodeToByteArray(endpointInfo)
@@ -142,7 +142,7 @@ class AwareConnectionManager(
 
             val sender = RemoteDevice(
                 peerHandle = peerHandle,
-                deviceId = DeviceId(decodedServiceSpecificInfo.deviceId)
+                deviceId = decodedServiceSpecificInfo.deviceId
             )
 
             _state.update { state ->
