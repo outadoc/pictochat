@@ -53,7 +53,7 @@ class AwareConnectionManager(
     applicationContext: Context,
     private val deviceIdProvider: DeviceIdProvider,
     private val clock: Clock,
-) : ConnectionManager, NearbyLifecycleCallbacks {
+) : ConnectionManager {
 
     private data class RemoteDevice(
         val peerHandle: PeerHandle,
@@ -89,7 +89,7 @@ class AwareConnectionManager(
     private var _connectionScope: CoroutineScope? = null
 
     @SuppressLint("MissingPermission")
-    override suspend fun onAttached(session: WifiAwareSession) {
+    private suspend fun onAttached(session: WifiAwareSession) {
         val endpointInfo = EndpointInfoPayload(
             deviceId = deviceIdProvider.deviceId.value
         )
@@ -114,21 +114,21 @@ class AwareConnectionManager(
         )
     }
 
-    override suspend fun onAttachFailed() {
+    private suspend fun onAttachFailed() {
     }
 
-    override suspend fun onPublishStarted(session: PublishDiscoverySession) {
+    private suspend fun onPublishStarted(session: PublishDiscoverySession) {
         _pubDiscoverySession?.close()
         _pubDiscoverySession = session
     }
 
-    override suspend fun onSubscribeStarted(session: SubscribeDiscoverySession) {
+    private suspend fun onSubscribeStarted(session: SubscribeDiscoverySession) {
         _subDiscoverySession?.close()
         _subDiscoverySession = session
     }
 
     @SuppressLint("MissingPermission")
-    override suspend fun onServiceDiscovered(
+    private suspend fun onServiceDiscovered(
         peerHandle: PeerHandle,
         serviceSpecificInfo: ByteArray,
         matchFilter: List<ByteArray>,
@@ -164,7 +164,7 @@ class AwareConnectionManager(
         }
     }
 
-    override suspend fun onServiceLost(peerHandle: PeerHandle, reason: Int) {
+    private suspend fun onServiceLost(peerHandle: PeerHandle, reason: Int) {
         _stateLock.withLock {
             _state.update { state ->
                 state.copy(
@@ -174,14 +174,14 @@ class AwareConnectionManager(
         }
     }
 
-    override suspend fun onMessageSendFailed(messageId: Int) {
+    private suspend fun onMessageSendFailed(messageId: Int) {
 
     }
 
-    override suspend fun onMessageSendSucceeded(messageId: Int) {
+    private suspend fun onMessageSendSucceeded(messageId: Int) {
     }
 
-    override suspend fun onMessageReceived(peerHandle: PeerHandle, message: ByteArray) {
+    private suspend fun onMessageReceived(peerHandle: PeerHandle, message: ByteArray) {
         _stateLock.withLock {
             val payload = ProtoBuf.decodeFromByteArray<ChatPayload>(decompress(message))
 
@@ -191,7 +191,7 @@ class AwareConnectionManager(
         }
     }
 
-    override suspend fun onAwareSessionTerminated() {
+    private suspend fun onAwareSessionTerminated() {
         _state.updateAndGet { state ->
             state.copy(
                 connectedPeers = persistentSetOf()
