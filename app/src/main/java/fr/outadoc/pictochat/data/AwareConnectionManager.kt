@@ -224,7 +224,6 @@ class AwareConnectionManager(
     }
 
     private fun doConnect() {
-        // TODO use another handler
         _awareClient.attach(attachCallback, null)
     }
 
