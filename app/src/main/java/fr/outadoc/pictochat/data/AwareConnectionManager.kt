@@ -162,7 +162,7 @@ class AwareConnectionManager(
             fragments.forEach { fragment ->
                 val messageId = randomInt()
                 Log.d(TAG, "Sending hello ($messageId) to $peerHandle: $helloPayload")
-                _pubDiscoverySession?.sendMessage(
+                _subDiscoverySession?.sendMessage(
                     peerHandle,
                     messageId,
                     ProtoBuf.encodeToByteArray(fragment)
@@ -276,13 +276,14 @@ class AwareConnectionManager(
                 lastOffset = fragment.data.size
             }
 
-        return ProtoBuf.decodeFromByteArray(decompress(buffer))
+        return ProtoBuf.decodeFromByteArray<ChatPayload>(decompress(buffer))
     }
 
     private fun encodePayloadToFragments(payload: ChatPayload): List<PayloadFragment> {
         val payloadBytes = compress(ProtoBuf.encodeToByteArray(payload))
         val totalBytes = payloadBytes.size
 
+        // TODO make this dynamic
         val maxFragmentSize: Int = 127
 
         val totalFragments: Int = (totalBytes / maxFragmentSize) + 1
@@ -360,7 +361,7 @@ class AwareConnectionManager(
 
         fragments.forEach { fragment ->
             val protoBytes = ProtoBuf.encodeToByteArray(fragment)
-            _pubDiscoverySession?.sendMessage(
+            _subDiscoverySession?.sendMessage(
                 destination,
                 randomInt(),
                 protoBytes
