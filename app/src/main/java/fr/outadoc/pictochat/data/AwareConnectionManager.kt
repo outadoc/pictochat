@@ -134,7 +134,7 @@ class AwareConnectionManager(
 
             val helloPayload = ChatPayload.Hello(
                 id = randomInt(),
-                senderDeviceId = deviceIdProvider.deviceId,
+                source = deviceIdProvider.deviceId,
                 sentAt = clock.now()
             )
 
@@ -171,7 +171,7 @@ class AwareConnectionManager(
 
             val sender = RemoteDevice(
                 peerHandle = peerHandle,
-                deviceId = payload.senderDeviceId
+                deviceId = payload.source
             )
 
             _payloadFlow.tryEmit(

@@ -13,7 +13,6 @@ import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.preferences.LocalPreferencesRepository
 import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.protocol.ChatPayload
-import fr.outadoc.pictochat.protocol.Drawing
 import fr.outadoc.pictochat.randomInt
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
@@ -142,13 +141,11 @@ class DefaultLobbyManager(
 
         val payload = ChatPayload.Message(
             id = randomInt(),
-            senderDeviceId = deviceIdProvider.deviceId,
+            source = deviceIdProvider.deviceId,
             sentAt = clock.now(),
             roomId = currentRoomId.value,
-            text = message.contentDescription,
-            drawing = Drawing(
-                data = message.drawing
-            )
+            contentDescription = message.contentDescription,
+            drawing = message.drawing
         )
 
         // Send the message to all connected devices
@@ -182,7 +179,7 @@ class DefaultLobbyManager(
                     state.collect { state ->
                         val payload = ChatPayload.Status(
                             id = randomInt(),
-                            senderDeviceId = deviceIdProvider.deviceId,
+                            source = deviceIdProvider.deviceId,
                             sentAt = clock.now(),
                             displayName = state.userProfile.displayName,
                             displayColorId = state.userProfile.displayColor.id,
@@ -206,7 +203,7 @@ class DefaultLobbyManager(
             is ChatPayload.Hello -> {}
             is ChatPayload.Status -> {
                 _state.update { state ->
-                    val sender = payload.data.senderDeviceId
+                    val sender = payload.data.source
                     val existingProfile: UpdatedUserProfile? = state.knownProfiles[sender]
 
                     if (existingProfile != null && existingProfile.updatedAt > payload.data.sentAt) {
@@ -285,8 +282,8 @@ class DefaultLobbyManager(
                                 timestamp = payload.sentAt,
                                 sender = sender,
                                 message = Message(
-                                    contentDescription = payload.text,
-                                    drawing = payload.drawing.data
+                                    contentDescription = payload.contentDescription,
+                                    drawing = payload.drawing
                                 )
                             )
                         )
