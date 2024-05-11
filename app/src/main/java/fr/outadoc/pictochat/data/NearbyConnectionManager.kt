@@ -22,7 +22,9 @@ import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.protocol.ChatPayload
 import fr.outadoc.pictochat.protocol.EndpointInfoPayload
+import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.PersistentSet
+import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toPersistentSet
 import kotlinx.coroutines.CoroutineScope
@@ -63,7 +65,7 @@ class NearbyConnectionManager(
     private data class InternalState(
         val isOnline: Boolean = false,
         val connectedPeers: PersistentSet<RemoteDevice> = persistentSetOf(),
-        val approvedPeers: PersistentSet<RemoteDevice> = persistentSetOf(),
+        val knownPeers: PersistentMap<String, DeviceId> = persistentMapOf(),
     )
 
     private var _state = MutableStateFlow(InternalState())
@@ -131,7 +133,7 @@ class NearbyConnectionManager(
                     connectedPeers = connectedDevice?.let {
                         state.connectedPeers.remove(connectedDevice)
                     } ?: state.connectedPeers,
-                    approvedPeers = state.approvedPeers.add(device)
+                    knownPeers = state.knownPeers.put(endpointId, device.deviceId)
                 )
             }
 
@@ -151,12 +153,14 @@ class NearbyConnectionManager(
     private suspend fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
         stateLock.withLock {
             _state.update { state ->
-                val device = state.approvedPeers.firstOrNull { it.endpointId == endpointId }
+                val deviceId = state.knownPeers[endpointId]
 
-                if (device == null) {
+                if (deviceId == null) {
                     Log.d(TAG, "Ignoring connection result for unknown endpoint $endpointId")
                     return@update state
                 }
+
+                val device = RemoteDevice(endpointId, deviceId)
 
                 Log.d(
                     TAG,
@@ -171,14 +175,14 @@ class NearbyConnectionManager(
                     -> {
                         state.copy(
                             connectedPeers = state.connectedPeers.add(device),
-                            approvedPeers = state.approvedPeers.remove(device)
+                            knownPeers = state.knownPeers.remove(endpointId)
                         )
                     }
 
                     else -> {
                         state.copy(
                             connectedPeers = state.connectedPeers.remove(device),
-                            approvedPeers = state.approvedPeers.remove(device)
+                            knownPeers = state.knownPeers.remove(endpointId)
                         )
                     }
                 }
@@ -191,7 +195,7 @@ class NearbyConnectionManager(
             _state.update { state ->
                 state.copy(
                     connectedPeers = state.connectedPeers.removeAll { it.endpointId == endpointId },
-                    approvedPeers = state.approvedPeers.removeAll { it.endpointId == endpointId }
+                    knownPeers = state.knownPeers.remove(endpointId)
                 )
             }
         }
@@ -289,7 +293,7 @@ class NearbyConnectionManager(
                     state.copy(
                         isOnline = true,
                         connectedPeers = persistentSetOf(),
-                        approvedPeers = persistentSetOf()
+                        knownPeers = persistentMapOf()
                     )
                 }
 
@@ -375,7 +379,7 @@ class NearbyConnectionManager(
             state.copy(
                 isOnline = false,
                 connectedPeers = persistentSetOf(),
-                approvedPeers = persistentSetOf()
+                knownPeers = persistentMapOf()
             )
         }
     }
