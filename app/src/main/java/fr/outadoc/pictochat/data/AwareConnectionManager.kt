@@ -141,21 +141,15 @@ class AwareConnectionManager(
         matchFilter: List<ByteArray>,
     ) {
         _stateLock.withLock {
-            val decodedServiceSpecificInfo =
-                ProtoBuf.decodeFromByteArray<EndpointInfoPayload>(serviceSpecificInfo)
+            val decodedServiceSpecificInfo: EndpointInfoPayload =
+                ProtoBuf.decodeFromByteArray(serviceSpecificInfo)
 
             val sender = RemoteDevice(
                 peerHandle = peerHandle,
                 deviceId = DeviceId(decodedServiceSpecificInfo.deviceId)
             )
 
-            _state.update { state ->
-                state.copy(
-                    connectedPeers = state.connectedPeers
-                        .removeAll { it.deviceId == sender.deviceId }
-                        .add(sender)
-                )
-            }
+            Log.d(TAG, "Discovered peer: $sender")
 
             val helloPayload = ChatPayload.Hello(
                 id = randomInt(),
@@ -166,10 +160,20 @@ class AwareConnectionManager(
             val fragments = encodePayloadToFragments(helloPayload)
 
             fragments.forEach { fragment ->
+                val messageId = randomInt()
+                Log.d(TAG, "Sending hello ($messageId) to $peerHandle: $helloPayload")
                 _pubDiscoverySession?.sendMessage(
                     peerHandle,
-                    randomInt(),
+                    messageId,
                     ProtoBuf.encodeToByteArray(fragment)
+                )
+            }
+
+            _state.update { state ->
+                state.copy(
+                    connectedPeers = state.connectedPeers
+                        .removeAll { it.deviceId == sender.deviceId }
+                        .add(sender)
                 )
             }
         }
