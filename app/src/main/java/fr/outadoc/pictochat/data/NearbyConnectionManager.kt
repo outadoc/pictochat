@@ -174,15 +174,13 @@ class NearbyConnectionManager(
                     ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT,
                     -> {
                         state.copy(
-                            connectedPeers = state.connectedPeers.add(device),
-                            knownPeers = state.knownPeers.remove(endpointId)
+                            connectedPeers = state.connectedPeers.add(device)
                         )
                     }
 
                     else -> {
                         state.copy(
-                            connectedPeers = state.connectedPeers.remove(device),
-                            knownPeers = state.knownPeers.remove(endpointId)
+                            connectedPeers = state.connectedPeers.remove(device)
                         )
                     }
                 }
@@ -195,7 +193,6 @@ class NearbyConnectionManager(
             _state.update { state ->
                 state.copy(
                     connectedPeers = state.connectedPeers.removeAll { it.endpointId == endpointId },
-                    knownPeers = state.knownPeers.remove(endpointId)
                 )
             }
         }
@@ -293,7 +290,6 @@ class NearbyConnectionManager(
                     state.copy(
                         isOnline = true,
                         connectedPeers = persistentSetOf(),
-                        knownPeers = persistentMapOf()
                     )
                 }
 
@@ -379,7 +375,6 @@ class NearbyConnectionManager(
             state.copy(
                 isOnline = false,
                 connectedPeers = persistentSetOf(),
-                knownPeers = persistentMapOf()
             )
         }
     }
