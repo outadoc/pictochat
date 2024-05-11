@@ -20,7 +20,9 @@ import fr.outadoc.pictochat.preferences.DeviceIdProvider
 import fr.outadoc.pictochat.protocol.ChatPayload
 import fr.outadoc.pictochat.protocol.EndpointInfoPayload
 import fr.outadoc.pictochat.randomInt
+import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.toPersistentSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,7 +31,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
@@ -54,9 +56,21 @@ class AwareConnectionManager(
     private val clock: Clock,
 ) : ConnectionManager, NearbyLifecycleCallbacks {
 
+    private data class InternalState(
+        val isOnline: Boolean = false,
+        val connectedPeers: PersistentSet<RemoteDevice> = persistentSetOf(),
+    )
+
     private val _stateLock = Mutex()
-    private var _state = MutableStateFlow(ConnectionManager.State())
-    override val state = _state.asStateFlow()
+    private var _state = MutableStateFlow(InternalState())
+
+    override val state = _state
+        .map { internalState ->
+            ConnectionManager.State(
+                isOnline = internalState.isOnline,
+                connectedPeers = internalState.connectedPeers.map { it.deviceId }.toPersistentSet()
+            )
+        }
 
     private val _payloadFlow = MutableSharedFlow<ReceivedPayload>(extraBufferCapacity = 32)
     override val payloadFlow = _payloadFlow.asSharedFlow()
@@ -220,13 +234,32 @@ class AwareConnectionManager(
         _awareClient.attach(attachCallback, null)
     }
 
-    @OptIn(ExperimentalSerializationApi::class)
-    override suspend fun sendPayload(endpointId: RemoteDevice, payload: ChatPayload) {
+    override suspend fun broadcast(payload: ChatPayload) {
+        _stateLock.withLock {
+            _state.value.connectedPeers.forEach { peer ->
+                sendPayloadTo(peer.deviceId, payload)
+            }
+        }
+    }
+
+    private fun sendPayloadTo(destination: DeviceId, payload: ChatPayload) {
+        val peerHandle = _state.value.connectedPeers
+            .firstOrNull { it.deviceId == destination }
+            ?.peerHandle
+
+        if (peerHandle == null) {
+            Log.e(
+                TAG,
+                "No peer found for $destination. Known peers: ${_state.value.connectedPeers}"
+            )
+            return
+        }
+
         val protoBytes = compress(ProtoBuf.encodeToByteArray(payload))
-        Log.d(TAG, "Sending payload (${protoBytes.size} bytes) to $endpointId: $payload")
+        Log.d(TAG, "Sending payload (${protoBytes.size} bytes) to $destination: $payload")
 
         _subDiscoverySession?.sendMessage(
-            endpointId.peerHandle,
+            peerHandle,
             payload.id.hashCode(),
             protoBytes
         )

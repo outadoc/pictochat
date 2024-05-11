@@ -76,8 +76,8 @@ class DefaultLobbyManager(
                             connectedDevices = roomState.connectedDevices
                                 .filter { deviceId ->
                                     val isOwnDevice = deviceId == deviceIdProvider.deviceId
-                                    val isKnownPeer = connectionState.connectedPeers
-                                        .any { device -> device.deviceId == deviceId }
+                                    val isKnownPeer =
+                                        connectionState.connectedPeers.contains(deviceId)
                                     isOwnDevice || isKnownPeer
                                 }
                                 .toPersistentSet()
@@ -133,8 +133,6 @@ class DefaultLobbyManager(
     }
 
     override suspend fun sendMessage(message: Message) {
-        val connectionState = connectionManager.state.value
-
         val currentRoomId = checkNotNull(_state.value.joinedRoomId) {
             "Cannot send message without first joining a room"
         }
@@ -149,12 +147,7 @@ class DefaultLobbyManager(
         )
 
         // Send the message to all connected devices
-        connectionState.connectedPeers.forEach { device ->
-            connectionManager.sendPayload(
-                endpointId = device,
-                payload = payload
-            )
-        }
+        connectionManager.broadcast(payload = payload)
 
         // Also show the message locally
         processReceivedMessage(
@@ -177,21 +170,16 @@ class DefaultLobbyManager(
 
                 launch {
                     state.collect { state ->
-                        val payload = ChatPayload.Status(
-                            id = randomInt(),
-                            source = deviceIdProvider.deviceId,
-                            sentAt = clock.now(),
-                            displayName = state.userProfile.displayName,
-                            displayColorId = state.userProfile.displayColor.id,
-                            roomId = state.joinedRoomId
-                        )
-
-                        state.connectedPeers.forEach { endpoint ->
-                            connectionManager.sendPayload(
-                                endpointId = endpoint,
-                                payload = payload
+                        connectionManager.broadcast(
+                            payload = ChatPayload.Status(
+                                id = randomInt(),
+                                source = deviceIdProvider.deviceId,
+                                sentAt = clock.now(),
+                                displayName = state.userProfile.displayName,
+                                displayColorId = state.userProfile.displayColor.id,
+                                roomId = state.joinedRoomId
                             )
-                        }
+                        )
                     }
                 }
             }
