@@ -183,6 +183,12 @@ class AwareConnectionManager(
     }
 
     override suspend fun onAwareSessionTerminated() {
+        _state.updateAndGet { state ->
+            state.copy(
+                connectedPeers = persistentSetOf()
+            )
+        }
+
         doConnect()
     }
 
