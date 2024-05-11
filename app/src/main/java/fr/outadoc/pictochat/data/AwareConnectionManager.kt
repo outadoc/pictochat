@@ -3,7 +3,6 @@ package fr.outadoc.pictochat.data
 import android.annotation.SuppressLint
 import android.content.Context
 import android.net.wifi.aware.AttachCallback
-import android.net.wifi.aware.DiscoverySession
 import android.net.wifi.aware.DiscoverySessionCallback
 import android.net.wifi.aware.PeerHandle
 import android.net.wifi.aware.PublishConfig
@@ -27,7 +26,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -37,6 +35,7 @@ import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
@@ -55,20 +54,19 @@ class AwareConnectionManager(
     private val clock: Clock,
 ) : ConnectionManager, NearbyLifecycleCallbacks {
 
-    private var _state: MutableStateFlow<ConnectionManager.State> =
-        MutableStateFlow(ConnectionManager.State())
+    private val _stateLock = Mutex()
+    private var _state = MutableStateFlow(ConnectionManager.State())
     override val state = _state.asStateFlow()
-
-    private val stateLock = Mutex()
 
     private val _payloadFlow = MutableSharedFlow<ReceivedPayload>(extraBufferCapacity = 32)
     override val payloadFlow = _payloadFlow.asSharedFlow()
 
-    private val connectionsClient = applicationContext.getSystemService<WifiAwareManager>()
+    private val _awareClient = applicationContext.getSystemService<WifiAwareManager>()
         ?: error("WifiAwareManager not available")
 
-    private var awareSession: WifiAwareSession? = null
-    private var discoverySession: DiscoverySession? = null
+    private var _awareSession: WifiAwareSession? = null
+    private var _pubDiscoverySession: PublishDiscoverySession? = null
+    private var _subDiscoverySession: SubscribeDiscoverySession? = null
 
     private var _connectionScope: CoroutineScope? = null
 
@@ -102,10 +100,13 @@ class AwareConnectionManager(
     }
 
     override suspend fun onPublishStarted(session: PublishDiscoverySession) {
+        _pubDiscoverySession?.close()
+        _pubDiscoverySession = session
     }
 
     override suspend fun onSubscribeStarted(session: SubscribeDiscoverySession) {
-        discoverySession = session
+        _subDiscoverySession?.close()
+        _subDiscoverySession = session
     }
 
     @SuppressLint("MissingPermission")
@@ -114,7 +115,7 @@ class AwareConnectionManager(
         serviceSpecificInfo: ByteArray,
         matchFilter: List<ByteArray>,
     ) {
-        stateLock.withLock {
+        _stateLock.withLock {
             val decodedServiceSpecificInfo =
                 ProtoBuf.decodeFromByteArray<EndpointInfoPayload>(serviceSpecificInfo)
 
@@ -137,7 +138,7 @@ class AwareConnectionManager(
                 sentAt = clock.now()
             )
 
-            discoverySession?.sendMessage(
+            _subDiscoverySession?.sendMessage(
                 peerHandle,
                 helloPayload.id.hashCode(),
                 compress(ProtoBuf.encodeToByteArray<ChatPayload>(helloPayload))
@@ -146,7 +147,7 @@ class AwareConnectionManager(
     }
 
     override suspend fun onServiceLost(peerHandle: PeerHandle, reason: Int) {
-        stateLock.withLock {
+        _stateLock.withLock {
             _state.update { state ->
                 state.copy(
                     connectedPeers = state.connectedPeers.removeAll { it.peerHandle == peerHandle }
@@ -163,7 +164,7 @@ class AwareConnectionManager(
     }
 
     override suspend fun onMessageReceived(peerHandle: PeerHandle, message: ByteArray) {
-        stateLock.withLock {
+        _stateLock.withLock {
             val payload = ProtoBuf.decodeFromByteArray<ChatPayload>(uncompress(message))
 
             Log.d(TAG, "onMessageReceived: $peerHandle, payload: $payload")
@@ -192,36 +193,31 @@ class AwareConnectionManager(
         doConnect()
     }
 
-    override suspend fun connect() {
-        coroutineScope {
-            _connectionScope?.cancel()
-            _connectionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    override suspend fun connect() = withContext(Dispatchers.IO) {
+        Log.d(TAG, "connect: deviceId=${deviceIdProvider.deviceId}")
 
-            _connectionScope?.launch {
-                Log.d(TAG, "connect: deviceId=${deviceIdProvider.deviceId}")
+        _connectionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-                _state.update { state ->
-                    state.copy(
-                        isOnline = true,
-                        connectedPeers = persistentSetOf()
-                    )
-                }
+        _state.update { state ->
+            state.copy(
+                isOnline = true,
+                connectedPeers = persistentSetOf()
+            )
+        }
 
-                doConnect()
+        doConnect()
 
-                try {
-                    awaitCancellation()
-                } catch (e: Exception) {
-                    Log.d(TAG, "Connection cancelled")
-                    close()
-                }
-            }
+        try {
+            awaitCancellation()
+        } finally {
+            Log.d(TAG, "Connection cancelled")
+            close()
         }
     }
 
     private fun doConnect() {
         // TODO use another handler
-        connectionsClient.attach(attachCallback, null)
+        _awareClient.attach(attachCallback, null)
     }
 
     @OptIn(ExperimentalSerializationApi::class)
@@ -229,7 +225,7 @@ class AwareConnectionManager(
         val protoBytes = compress(ProtoBuf.encodeToByteArray(payload))
         Log.d(TAG, "Sending payload (${protoBytes.size} bytes) to $endpointId: $payload")
 
-        discoverySession?.sendMessage(
+        _subDiscoverySession?.sendMessage(
             endpointId.peerHandle,
             payload.id.hashCode(),
             protoBytes
@@ -239,8 +235,17 @@ class AwareConnectionManager(
     override fun close() {
         Log.d(TAG, "Closing all connections")
 
-        awareSession?.close()
+        _pubDiscoverySession?.close()
+        _pubDiscoverySession = null
+
+        _subDiscoverySession?.close()
+        _subDiscoverySession = null
+
+        _awareSession?.close()
+        _awareSession = null
+
         _connectionScope?.cancel()
+        _connectionScope = null
 
         _state.updateAndGet { state ->
             state.copy(
