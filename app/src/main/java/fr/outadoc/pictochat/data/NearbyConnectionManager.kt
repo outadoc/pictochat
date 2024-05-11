@@ -283,7 +283,7 @@ class NearbyConnectionManager(
             _connectionScope?.cancel()
             _connectionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-            launch {
+            _connectionScope?.launch {
                 Log.d(TAG, "connect: deviceId=${deviceIdProvider.deviceId}")
 
                 _state.update { state ->
@@ -293,7 +293,7 @@ class NearbyConnectionManager(
                     )
                 }
 
-                launch(Dispatchers.IO) {
+                launch {
                     Log.d(TAG, "startDiscovery")
 
                     wrap(label = "startDiscovery") {
@@ -309,7 +309,7 @@ class NearbyConnectionManager(
                     }
                 }
 
-                launch(Dispatchers.IO) {
+                launch {
                     val endpointInfo = EndpointInfoPayload(
                         deviceId = deviceIdProvider.deviceId.value
                     )
@@ -328,15 +328,15 @@ class NearbyConnectionManager(
                             )
                             .await()
                     }
-
-                    try {
-                        awaitCancellation()
-                    } catch (e: Exception) {
-                        Log.d(TAG, "Connection cancelled")
-                        close()
-                    }
                 }
             }
+        }
+
+        try {
+            awaitCancellation()
+        } catch (e: Exception) {
+            Log.d(TAG, "Connection cancelled")
+            close()
         }
     }
 
@@ -438,18 +438,15 @@ class NearbyConnectionManager(
     private val endpointDiscoveryCallbackDelegate = object : EndpointDiscoveryCallback() {
 
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-            _connectionScope?.launch(Dispatchers.IO) {
-                Log.d(
-                    "EndpointDiscoveryCallbackDelegate",
-                    "onEndpointFound(endpointId=$endpointId, info=$info)"
-                )
+            _connectionScope?.launch {
+                Log.d(TAG, "onEndpointFound(endpointId=$endpointId, info=$info)")
                 this@NearbyConnectionManager.onEndpointFound(endpointId, info)
             }
         }
 
         override fun onEndpointLost(endpointId: String) {
-            _connectionScope?.launch(Dispatchers.IO) {
-                Log.d("EndpointDiscoveryCallbackDelegate", "onEndpointLost(endpointId=$endpointId)")
+            _connectionScope?.launch {
+                Log.d(TAG, "onEndpointLost(endpointId=$endpointId)")
                 this@NearbyConnectionManager.onEndpointLost(endpointId)
             }
         }
@@ -458,9 +455,9 @@ class NearbyConnectionManager(
     private val connectionLifecycleCallbackDelegate = object : ConnectionLifecycleCallback() {
 
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
-            _connectionScope?.launch(Dispatchers.IO) {
+            _connectionScope?.launch {
                 Log.d(
-                    "ConnectionLifecycleCallbackDelegate",
+                    TAG,
                     "onConnectionInitiated(endpointId=$endpointId, connectionInfo=$connectionInfo)"
                 )
                 this@NearbyConnectionManager.onConnectionInitiated(endpointId, connectionInfo)
@@ -468,21 +465,15 @@ class NearbyConnectionManager(
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
-            _connectionScope?.launch(Dispatchers.IO) {
-                Log.d(
-                    "ConnectionLifecycleCallbackDelegate",
-                    "onConnectionResult(endpointId=$endpointId, result=$result)"
-                )
+            _connectionScope?.launch {
+                Log.d(TAG, "onConnectionResult(endpointId=$endpointId, result=$result)")
                 this@NearbyConnectionManager.onConnectionResult(endpointId, result)
             }
         }
 
         override fun onDisconnected(endpointId: String) {
-            _connectionScope?.launch(Dispatchers.IO) {
-                Log.d(
-                    "ConnectionLifecycleCallbackDelegate",
-                    "onDisconnected(endpointId=$endpointId)"
-                )
+            _connectionScope?.launch {
+                Log.d(TAG, "onDisconnected(endpointId=$endpointId)")
                 this@NearbyConnectionManager.onDisconnected(endpointId)
             }
         }
@@ -491,11 +482,8 @@ class NearbyConnectionManager(
     private val payloadCallbackDelegate = object : PayloadCallback() {
 
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
-            _connectionScope?.launch(Dispatchers.IO) {
-                Log.d(
-                    "PayloadCallbackDelegate",
-                    "onPayloadReceived(endpointId=$endpointId, payload=$payload)"
-                )
+            _connectionScope?.launch {
+                Log.d(TAG, "onPayloadReceived(endpointId=$endpointId, payload=$payload)")
                 this@NearbyConnectionManager.onPayloadReceived(endpointId, payload)
             }
         }
@@ -504,11 +492,8 @@ class NearbyConnectionManager(
             endpointId: String,
             update: PayloadTransferUpdate,
         ) {
-            _connectionScope?.launch(Dispatchers.IO) {
-                Log.d(
-                    "PayloadCallbackDelegate",
-                    "onPayloadTransferUpdate(endpointId=$endpointId, update=$update)"
-                )
+            _connectionScope?.launch {
+                Log.d(TAG, "onPayloadTransferUpdate(endpointId=$endpointId, update=$update)")
                 this@NearbyConnectionManager.onPayloadTransferUpdate(endpointId, update)
             }
         }

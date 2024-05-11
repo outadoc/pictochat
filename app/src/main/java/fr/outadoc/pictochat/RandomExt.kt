@@ -2,6 +2,8 @@ package fr.outadoc.pictochat
 
 import java.security.SecureRandom
 
+private val random = SecureRandom()
+
 fun randomInt(): Int {
-    return SecureRandom.getInstanceStrong().nextInt()
+    return random.nextInt()
 }

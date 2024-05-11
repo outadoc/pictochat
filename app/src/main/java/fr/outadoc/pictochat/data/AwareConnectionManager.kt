@@ -11,7 +11,9 @@ import android.net.wifi.aware.SubscribeConfig
 import android.net.wifi.aware.SubscribeDiscoverySession
 import android.net.wifi.aware.WifiAwareManager
 import android.net.wifi.aware.WifiAwareSession
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.core.content.getSystemService
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.preferences.DeviceId
@@ -27,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -47,7 +50,7 @@ import java.io.ByteArrayOutputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
-
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalSerializationApi::class, ExperimentalStdlibApi::class)
 class AwareConnectionManager(
     applicationContext: Context,
@@ -201,19 +204,24 @@ class AwareConnectionManager(
         doConnect()
     }
 
-    override suspend fun connect() = withContext(Dispatchers.IO) {
-        Log.d(TAG, "connect: deviceId=${deviceIdProvider.deviceId}")
+    override suspend fun connect() {
+        coroutineScope {
+            _connectionScope?.cancel()
+            _connectionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-        _connectionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            _connectionScope?.launch {
+                Log.d(TAG, "connect: deviceId=${deviceIdProvider.deviceId}")
 
-        _state.update { state ->
-            state.copy(
-                isOnline = true,
-                connectedPeers = persistentSetOf()
-            )
+                _state.update { state ->
+                    state.copy(
+                        isOnline = true,
+                        connectedPeers = persistentSetOf()
+                    )
+                }
+
+                doConnect()
+            }
         }
-
-        doConnect()
 
         try {
             awaitCancellation()
@@ -388,6 +396,6 @@ class AwareConnectionManager(
 
     companion object {
         private const val PICTOCHAT_SERVICE_ID = "fr.outadoc.pictochat"
-        private const val TAG = "NearbyConnectionManager"
+        private const val TAG = "AwareConnectionManager"
     }
 }

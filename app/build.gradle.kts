@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "fr.outadoc.pictochat"
-        minSdk = 26
+        minSdk = 22
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
