@@ -237,29 +237,18 @@ class AwareConnectionManager(
     override suspend fun broadcast(payload: ChatPayload) {
         _stateLock.withLock {
             _state.value.connectedPeers.forEach { peer ->
-                sendPayloadTo(peer.deviceId, payload)
+                sendPayloadTo(peer.peerHandle, payload)
             }
         }
     }
 
-    private fun sendPayloadTo(destination: DeviceId, payload: ChatPayload) {
-        val peerHandle = _state.value.connectedPeers
-            .firstOrNull { it.deviceId == destination }
-            ?.peerHandle
-
-        if (peerHandle == null) {
-            Log.e(
-                TAG,
-                "No peer found for $destination. Known peers: ${_state.value.connectedPeers}"
-            )
-            return
-        }
-
+    private fun sendPayloadTo(destination: PeerHandle, payload: ChatPayload) {
         val protoBytes = compress(ProtoBuf.encodeToByteArray(payload))
+
         Log.d(TAG, "Sending payload (${protoBytes.size} bytes) to $destination: $payload")
 
         _subDiscoverySession?.sendMessage(
-            peerHandle,
+            destination,
             payload.id.hashCode(),
             protoBytes
         )
