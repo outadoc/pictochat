@@ -317,14 +317,14 @@ class AwareConnectionManager(
     private val discoverySessionCallback = object : DiscoverySessionCallback() {
 
         override fun onPublishStarted(session: PublishDiscoverySession) {
-            _connectionScope?.launch(Dispatchers.IO) {
+            _connectionScope?.launch {
                 Log.d(TAG, "onPublishStarted(session=$session)")
                 this@AwareConnectionManager.onPublishStarted(session)
             }
         }
 
         override fun onMessageReceived(peerHandle: PeerHandle, message: ByteArray) {
-            _connectionScope?.launch(Dispatchers.IO) {
+            _connectionScope?.launch {
                 Log.d(
                     TAG,
                     "onMessageReceived(peerHandle=$peerHandle, message=${message.toHexString()})"
@@ -334,21 +334,21 @@ class AwareConnectionManager(
         }
 
         override fun onMessageSendFailed(messageId: Int) {
-            _connectionScope?.launch(Dispatchers.IO) {
+            _connectionScope?.launch {
                 Log.d(TAG, "onMessageSendFailed(messageId=$messageId)")
                 this@AwareConnectionManager.onMessageSendFailed(messageId)
             }
         }
 
         override fun onMessageSendSucceeded(messageId: Int) {
-            _connectionScope?.launch(Dispatchers.IO) {
+            _connectionScope?.launch {
                 Log.d(TAG, "onMessageSendSucceeded(messageId=$messageId)")
                 this@AwareConnectionManager.onMessageSendSucceeded(messageId)
             }
         }
 
         override fun onSubscribeStarted(session: SubscribeDiscoverySession) {
-            _connectionScope?.launch(Dispatchers.IO) {
+            _connectionScope?.launch {
                 Log.d(TAG, "onSubscribeStarted(session=$session)")
                 this@AwareConnectionManager.onSubscribeStarted(session)
             }
@@ -359,7 +359,7 @@ class AwareConnectionManager(
             serviceSpecificInfo: ByteArray,
             matchFilter: List<ByteArray>,
         ) {
-            _connectionScope?.launch(Dispatchers.IO) {
+            _connectionScope?.launch {
                 Log.d(
                     TAG,
                     "onServiceDiscovered(peerHandle=$peerHandle, serviceSpecificInfo=${serviceSpecificInfo.toHexString()}, matchFilter=${matchFilter})"
@@ -373,7 +373,7 @@ class AwareConnectionManager(
         }
 
         override fun onServiceLost(peerHandle: PeerHandle, reason: Int) {
-            _connectionScope?.launch(Dispatchers.IO) {
+            _connectionScope?.launch {
                 Log.d(TAG, "onServiceLost(peerHandle=$peerHandle, reason=$reason)")
                 this@AwareConnectionManager.onServiceLost(peerHandle, reason)
             }
@@ -383,21 +383,21 @@ class AwareConnectionManager(
     private val attachCallback = object : AttachCallback() {
 
         override fun onAttached(session: WifiAwareSession) {
-            _connectionScope?.launch(Dispatchers.IO) {
+            _connectionScope?.launch {
                 Log.d(TAG, "onAttached(session=$session)")
                 this@AwareConnectionManager.onAttached(session)
             }
         }
 
         override fun onAttachFailed() {
-            _connectionScope?.launch(Dispatchers.IO) {
+            _connectionScope?.launch {
                 Log.d(TAG, "onAttachFailed")
                 this@AwareConnectionManager.onAttachFailed()
             }
         }
 
         override fun onAwareSessionTerminated() {
-            _connectionScope?.launch(Dispatchers.IO) {
+            _connectionScope?.launch {
                 Log.d(TAG, "onAwareSessionTerminated")
                 this@AwareConnectionManager.onAwareSessionTerminated()
             }
