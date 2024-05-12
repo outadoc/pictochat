@@ -38,7 +38,7 @@ fun RoomMessages(
     eventHistory: ImmutableList<ChatEvent>,
     knownProfiles: ImmutableMap<DeviceId, UserProfile>,
 ) {
-    var isListAtBottom by remember { mutableStateOf(false) }
+    var isListAtBottom by remember { mutableStateOf(true) }
     val listState = rememberLazyListState()
 
     LaunchedEffect(eventHistory) {
