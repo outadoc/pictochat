@@ -245,23 +245,6 @@ class AwareConnectionManager(
         }
     }
 
-    override suspend fun send(recipient: DeviceId, payload: ChatPayload) {
-        _stateLock.withLock {
-            val recipientPeer = _state.value.connectedPeers
-                .firstOrNull { it.deviceId == recipient }
-
-            if (recipientPeer == null) {
-                Log.e(TAG, "Recipient $recipient not found in connected peers")
-                return
-            }
-
-            sendPayloadTo(
-                destination = recipientPeer.peerHandle,
-                payload = payload
-            )
-        }
-    }
-
     private fun sendPayloadTo(destination: PeerHandle, payload: ChatPayload) {
         val protoBytes = compress(ProtoBuf.encodeToByteArray(payload))
 

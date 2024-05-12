@@ -13,6 +13,7 @@ import fr.outadoc.pictochat.preferences.LocalPreferencesRepository
 import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.protocol.ChatPayload
 import fr.outadoc.pictochat.randomInt
+import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toPersistentMap
@@ -39,6 +40,12 @@ class DefaultLobbyManager(
     private data class UpdatedUserProfile(
         val updatedAt: Instant,
         val userProfile: UserProfile,
+    )
+
+    private data class ProfileBroadcastTrigger(
+        val userProfile: UserProfile,
+        val joinedRoomId: RoomId?,
+        val connectedPeers: ImmutableSet<DeviceId>,
     )
 
     private data class InternalState(
@@ -141,17 +148,23 @@ class DefaultLobbyManager(
 
                 launch {
                     state
-                        .map { state -> state.userProfile to state.joinedRoomId }
+                        .map { state ->
+                            ProfileBroadcastTrigger(
+                                userProfile = state.userProfile,
+                                joinedRoomId = state.joinedRoomId,
+                                connectedPeers = state.connectedPeers
+                            )
+                        }
                         .distinctUntilChanged()
-                        .collect { (userProfile, joinedRoomId) ->
+                        .collect { trigger ->
                             connectionManager.broadcast(
                                 payload = ChatPayload.Status(
                                     id = randomInt(),
                                     source = deviceIdProvider.deviceId,
                                     sentAt = clock.now(),
-                                    displayName = userProfile.displayName,
-                                    displayColorId = userProfile.displayColor.id,
-                                    roomId = joinedRoomId
+                                    displayName = trigger.userProfile.displayName,
+                                    displayColorId = trigger.userProfile.displayColor.id,
+                                    roomId = trigger.joinedRoomId
                                 )
                             )
                         }
