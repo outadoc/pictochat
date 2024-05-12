@@ -51,6 +51,8 @@ fun RoomInput(
     val lines = remember { mutableStateListOf<CanvasLine>() }
     var message by remember { mutableStateOf(TextFieldValue()) }
 
+    var hasMessageContents = message.text.isNotBlank() || lines.isNotEmpty()
+
     val isImeVisible = WindowInsets.isImeVisible
 
     val bitmap =
@@ -118,6 +120,8 @@ fun RoomInput(
         )
 
         RoomInputActions(
+            enableClearButton = hasMessageContents,
+            enableSendButton = hasMessageContents,
             onToggleKeyboard = {
                 if (isImeVisible) {
                     keyboardController?.hide()
