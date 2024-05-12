@@ -236,6 +236,9 @@ class AwareConnectionManager(
     }
 
     override suspend fun broadcast(payload: ChatPayload) {
+        // Echo message locally
+        _payloadFlow.tryEmit(payload)
+
         _stateLock.withLock {
             _state.value.connectedPeers.forEach { peer ->
                 sendPayloadTo(peer.peerHandle, payload)

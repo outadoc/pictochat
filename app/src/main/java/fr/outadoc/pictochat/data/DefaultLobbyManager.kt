@@ -94,39 +94,17 @@ class DefaultLobbyManager(
             "Room $roomId does not exist"
         }
 
-        val deviceId = deviceIdProvider.deviceId
         _state.update { state ->
             state.copy(
                 joinedRoomId = roomId,
-                rooms = state.rooms
-                    .mapValues { (id, roomState) ->
-                        when (id) {
-                            roomId -> roomState.copy(
-                                connectedDevices = roomState.connectedDevices.add(deviceId)
-                            )
-
-                            else -> roomState.copy(
-                                connectedDevices = roomState.connectedDevices.remove(deviceId)
-                            )
-                        }
-                    }
-                    .toPersistentMap()
             )
         }
     }
 
     override suspend fun leaveCurrentRoom() {
-        val deviceId = deviceIdProvider.deviceId
         _state.update { state ->
             state.copy(
-                joinedRoomId = null,
-                rooms = state.rooms
-                    .mapValues { (_, roomState) ->
-                        roomState.copy(
-                            connectedDevices = roomState.connectedDevices.remove(deviceId)
-                        )
-                    }
-                    .toPersistentMap()
+                joinedRoomId = null
             )
         }
     }
