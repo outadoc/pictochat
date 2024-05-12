@@ -13,4 +13,5 @@ data class RoomState(
     val displayName: String,
     val connectedDevices: PersistentSet<DeviceId> = persistentSetOf(),
     val eventHistory: PersistentList<ChatEvent> = persistentListOf(),
+    val eventHistoryIds: PersistentSet<Int> = persistentSetOf(),
 )

@@ -1,6 +1,5 @@
 package fr.outadoc.pictochat.data
 
-import androidx.compose.ui.util.fastAny
 import fr.outadoc.pictochat.domain.ChatEvent
 import fr.outadoc.pictochat.domain.ConnectionManager
 import fr.outadoc.pictochat.domain.LobbyManager
@@ -254,7 +253,7 @@ class DefaultLobbyManager(
             }
 
             // If the message is already in the room's event history, ignore it
-            if (state.rooms[roomId]?.eventHistory?.fastAny { it.id == payload.id } == true) {
+            if (roomState.eventHistoryIds.contains(payload.id)) {
                 return@update state
             }
 
@@ -263,6 +262,7 @@ class DefaultLobbyManager(
                 rooms = state.rooms.put(
                     roomId,
                     roomState.copy(
+                        eventHistoryIds = roomState.eventHistoryIds.add(payload.id),
                         eventHistory = roomState.eventHistory.add(
                             ChatEvent.Message(
                                 id = payload.id,
