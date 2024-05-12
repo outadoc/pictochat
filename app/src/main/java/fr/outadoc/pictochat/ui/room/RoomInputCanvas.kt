@@ -1,6 +1,7 @@
 package fr.outadoc.pictochat.ui.room
 
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,6 +35,20 @@ fun RoomInputCanvas(
                 .fillMaxSize()
                 .onSizeChanged { imageSize ->
                     canvasWidthPx = imageSize.width.toFloat()
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures { offset ->
+                        val width = canvasWidthPx ?: return@detectTapGestures
+
+                        val imageDensity = bitmap.width / width
+
+                        onLineDrawn(
+                            CanvasLine(
+                                start = offset * imageDensity,
+                                end = offset * imageDensity
+                            )
+                        )
+                    }
                 }
                 .pointerInput(Unit) {
                     detectDragGestures { change, dragAmount ->
