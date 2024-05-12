@@ -31,7 +31,7 @@ fun DrawnMessage(
     contentDescription: String,
 ) {
     Box(
-        modifier
+        modifier = modifier
             .border(
                 width = 3.dp,
                 color = MaterialTheme.colorScheme.primary,
