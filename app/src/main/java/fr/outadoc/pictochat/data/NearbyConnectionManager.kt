@@ -358,6 +358,20 @@ class NearbyConnectionManager(
         }
     }
 
+    override suspend fun send(recipient: DeviceId, payload: ChatPayload) {
+        val recipientDevice = _state.value.connectedPeers.find { it.deviceId == recipient }
+
+        if (recipientDevice == null) {
+            Log.e(TAG, "Recipient $recipient not found in connected peers")
+            return
+        }
+
+        sendPayloadTo(
+            endpointId = recipientDevice.endpointId,
+            payload = payload
+        )
+    }
+
     private suspend fun sendPayloadTo(endpointId: String, payload: ChatPayload) {
         val protoBytes = ProtoBuf.encodeToByteArray(payload)
 

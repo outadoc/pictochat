@@ -39,7 +39,6 @@ import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
@@ -243,6 +242,23 @@ class AwareConnectionManager(
             _state.value.connectedPeers.forEach { peer ->
                 sendPayloadTo(peer.peerHandle, payload)
             }
+        }
+    }
+
+    override suspend fun send(recipient: DeviceId, payload: ChatPayload) {
+        _stateLock.withLock {
+            val recipientPeer = _state.value.connectedPeers
+                .firstOrNull { it.deviceId == recipient }
+
+            if (recipientPeer == null) {
+                Log.e(TAG, "Recipient $recipient not found in connected peers")
+                return
+            }
+
+            sendPayloadTo(
+                destination = recipientPeer.peerHandle,
+                payload = payload
+            )
         }
     }
 

@@ -16,6 +16,7 @@ interface ConnectionManager : Closeable {
     suspend fun connect()
 
     suspend fun broadcast(payload: ChatPayload)
+    suspend fun send(recipient: DeviceId, payload: ChatPayload)
 
     data class State(
         val isOnline: Boolean = false,
