@@ -7,23 +7,24 @@ sealed class ChatEvent {
 
     abstract val id: Int
     abstract val timestamp: Instant
+    abstract val sender: DeviceId
 
     data class Join(
         override val id: Int,
         override val timestamp: Instant,
-        val deviceId: DeviceId,
+        override val sender: DeviceId,
     ) : ChatEvent()
 
     data class Leave(
         override val id: Int,
         override val timestamp: Instant,
-        val deviceId: DeviceId,
+        override val sender: DeviceId,
     ) : ChatEvent()
 
     data class Message(
         override val id: Int,
         override val timestamp: Instant,
-        val sender: DeviceId,
+        override val sender: DeviceId,
         val message: fr.outadoc.pictochat.domain.Message,
     ) : ChatEvent()
 }

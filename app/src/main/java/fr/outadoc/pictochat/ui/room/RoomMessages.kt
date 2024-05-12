@@ -26,10 +26,10 @@ import fr.outadoc.pictochat.domain.ChatEvent
 import fr.outadoc.pictochat.domain.ProfileColor
 import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.UserProfile
+import fr.outadoc.pictochat.ui.theme.PictoChatTheme
 import fr.outadoc.pictochat.ui.theme.toColor
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
-import kotlinx.collections.immutable.persistentMapOf
 
 
 @Composable
@@ -64,10 +64,15 @@ fun RoomMessages(
             },
             key = { event -> event.id }
         ) { event ->
-            ChatEvent(
-                event = event,
-                knownProfiles = knownProfiles
-            )
+            val profile = knownProfiles.getProfile(event.sender)
+            PictoChatTheme(
+                favoriteColor = profile.displayColor.toColor()
+            ) {
+                ChatEvent(
+                    event = event,
+                    profile = profile
+                )
+            }
         }
 
         item(key = "bottom") {
@@ -88,11 +93,10 @@ fun RoomMessages(
 private fun ChatEvent(
     modifier: Modifier = Modifier,
     event: ChatEvent,
-    knownProfiles: ImmutableMap<DeviceId, UserProfile> = persistentMapOf(),
+    profile: UserProfile,
 ) {
     when (event) {
         is ChatEvent.Join -> {
-            val profile = knownProfiles.getProfile(event.deviceId)
             ListItem(
                 modifier = modifier,
                 headlineContent = {
@@ -106,7 +110,6 @@ private fun ChatEvent(
         }
 
         is ChatEvent.Leave -> {
-            val profile = knownProfiles.getProfile(event.deviceId)
             ListItem(
                 modifier = modifier,
                 headlineContent = {
@@ -120,7 +123,6 @@ private fun ChatEvent(
         }
 
         is ChatEvent.Message -> {
-            val profile = knownProfiles.getProfile(event.sender)
             ListItem(
                 modifier = modifier,
                 overlineContent = { Text(event.timestamp.toString()) },
@@ -147,7 +149,6 @@ private fun ChatEvent(
                         DrawnMessage(
                             modifier = Modifier.fillMaxWidth(),
                             bitmap = bitmap,
-                            color = profile.displayColor.toColor(),
                             contentDescription = buildString {
                                 append("Canvas sent by ")
                                 append(profile.displayName)

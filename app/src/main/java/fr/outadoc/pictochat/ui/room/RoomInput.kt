@@ -46,9 +46,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.ui.theme.PictoChatTextStyle
-import fr.outadoc.pictochat.ui.theme.toColor
 import java.io.ByteArrayOutputStream
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -56,7 +54,6 @@ import java.io.ByteArrayOutputStream
 fun RoomInput(
     modifier: Modifier = Modifier,
     onSendMessage: (Message) -> Unit,
-    userProfile: UserProfile,
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -126,8 +123,7 @@ fun RoomInput(
             modifier = Modifier.fillMaxWidth(),
             contentDescription = "Draw a message",
             onLineDrawn = { lines.add(it) },
-            bitmap = bitmap,
-            favoriteColor = userProfile.displayColor.toColor()
+            bitmap = bitmap
         )
 
         RoomInputActions(
@@ -221,7 +217,6 @@ private fun RoomInputCanvas(
     contentDescription: String,
     onLineDrawn: (Line) -> Unit,
     bitmap: ImageBitmap,
-    favoriteColor: Color,
 ) {
     var canvasWidthPx: Float? by remember { mutableStateOf(null) }
 
@@ -248,8 +243,7 @@ private fun RoomInputCanvas(
                 }
             },
         bitmap = bitmap,
-        contentDescription = contentDescription,
-        color = favoriteColor
+        contentDescription = contentDescription
     )
 }
 

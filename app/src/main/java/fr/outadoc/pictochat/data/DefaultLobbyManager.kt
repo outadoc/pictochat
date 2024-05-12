@@ -227,7 +227,7 @@ class DefaultLobbyManager(
                                             ChatEvent.Join(
                                                 id = payload.id,
                                                 timestamp = payload.sentAt,
-                                                deviceId = sender,
+                                                sender = sender,
                                             )
                                         )
                                     )
@@ -238,17 +238,21 @@ class DefaultLobbyManager(
                                 if (roomState.connectedDevices.contains(sender)) {
                                     // The device was in the room and is leaving
                                     roomState.copy(
-                                        connectedDevices = roomState.connectedDevices
+                                        connectedDevices = roomState
+                                            .connectedDevices
                                             .remove(sender),
-                                        eventHistoryIds = roomState.eventHistoryIds
+                                        eventHistoryIds = roomState
+                                            .eventHistoryIds
                                             .add(payload.id),
-                                        eventHistory = roomState.eventHistory.add(
-                                            ChatEvent.Leave(
-                                                id = payload.id,
-                                                timestamp = payload.sentAt,
-                                                deviceId = sender,
-                                            )
-                                        ),
+                                        eventHistory = roomState
+                                            .eventHistory
+                                            .add(
+                                                ChatEvent.Leave(
+                                                    id = payload.id,
+                                                    timestamp = payload.sentAt,
+                                                    sender = sender,
+                                                )
+                                            ),
                                     )
                                 } else {
                                     // The device is not in this room

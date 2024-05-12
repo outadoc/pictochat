@@ -61,7 +61,6 @@ fun RoomScreen(
                 eventHistory = currentState.eventHistory,
                 knownProfiles = currentState.knownProfiles,
                 usersInRoom = currentState.usersInRoom,
-                userProfile = currentState.userProfile,
                 onBackPressed = onBackPressed,
                 onSendMessage = viewModel::onSendMessage,
             )
@@ -76,7 +75,6 @@ private fun RoomScreenContent(
     title: String,
     eventHistory: ImmutableList<ChatEvent>,
     knownProfiles: ImmutableMap<DeviceId, UserProfile>,
-    userProfile: UserProfile,
     usersInRoom: Int,
     onBackPressed: () -> Unit = {},
     onSendMessage: (Message) -> Unit = {},
@@ -113,8 +111,7 @@ private fun RoomScreenContent(
                 modifier = Modifier
                     .imePadding()
                     .padding(16.dp),
-                onSendMessage = onSendMessage,
-                userProfile = userProfile
+                onSendMessage = onSendMessage
             )
         }
     }
@@ -129,7 +126,7 @@ private fun RoomScreenPreview() {
             ChatEvent.Join(
                 id = 1,
                 timestamp = Instant.parse("2021-09-01T12:00:00Z"),
-                deviceId = DeviceId(1)
+                sender = DeviceId(1)
             ),
             ChatEvent.Message(
                 id = 2,
@@ -143,7 +140,7 @@ private fun RoomScreenPreview() {
             ChatEvent.Leave(
                 id = 3,
                 timestamp = Instant.parse("2021-09-01T12:05:00Z"),
-                deviceId = DeviceId(1)
+                sender = DeviceId(1)
             )
         ),
         knownProfiles = persistentMapOf(
@@ -152,10 +149,6 @@ private fun RoomScreenPreview() {
                 displayColor = ProfileColor.Color3
             )
         ),
-        usersInRoom = 42,
-        userProfile = UserProfile(
-            displayName = "Bob",
-            displayColor = ProfileColor.Color1
-        )
+        usersInRoom = 42
     )
 }

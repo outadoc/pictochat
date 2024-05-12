@@ -3,6 +3,8 @@ package fr.outadoc.pictochat.ui.room
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -11,6 +13,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
@@ -23,22 +26,24 @@ fun DrawnMessage(
     modifier: Modifier = Modifier,
     bitmap: ImageBitmap,
     contentDescription: String,
-    color: Color
 ) {
     Image(
         modifier = modifier
             .border(
                 width = 3.dp,
-                color = color,
+                color = MaterialTheme.colorScheme.primary,
                 shape = MaterialTheme.shapes.medium
             )
             .clip(MaterialTheme.shapes.medium)
             .clipToBounds()
-            .background(Color.White),
+            .background(MaterialTheme.colorScheme.secondaryContainer),
         bitmap = bitmap,
         contentScale = ContentScale.FillWidth,
         filterQuality = FilterQuality.None,
-        contentDescription = contentDescription
+        contentDescription = contentDescription,
+        colorFilter = ColorFilter.tint(
+            MaterialTheme.colorScheme.onSecondaryContainer
+        )
     )
 }
 
@@ -64,8 +69,8 @@ private fun DrawnMessagePreview() {
     )
 
     DrawnMessage(
+        modifier = Modifier.width(512.dp),
         bitmap = bitmap,
-        contentDescription = "Preview",
-        color = Color.Red
+        contentDescription = "Preview"
     )
 }
