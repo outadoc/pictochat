@@ -9,4 +9,5 @@ object InputConfig {
         width = 228f,
         height = 80f
     )
+    val CanvasRatio = CanvasSize.width / CanvasSize.height
 }
