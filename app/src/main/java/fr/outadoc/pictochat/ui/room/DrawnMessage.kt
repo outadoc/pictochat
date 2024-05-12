@@ -3,6 +3,9 @@ package fr.outadoc.pictochat.ui.room
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
@@ -27,24 +30,30 @@ fun DrawnMessage(
     bitmap: ImageBitmap,
     contentDescription: String,
 ) {
-    Image(
-        modifier = modifier
+    Box(
+        modifier
             .border(
                 width = 3.dp,
                 color = MaterialTheme.colorScheme.primary,
                 shape = MaterialTheme.shapes.medium
             )
-            .clip(MaterialTheme.shapes.medium)
-            .clipToBounds()
-            .background(MaterialTheme.colorScheme.secondaryContainer),
-        bitmap = bitmap,
-        contentScale = ContentScale.FillWidth,
-        filterQuality = FilterQuality.None,
-        contentDescription = contentDescription,
-        colorFilter = ColorFilter.tint(
-            MaterialTheme.colorScheme.onSecondaryContainer
+    ) {
+        Image(
+            modifier = Modifier
+                .padding(3.dp)
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .clipToBounds()
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+            bitmap = bitmap,
+            contentScale = ContentScale.FillWidth,
+            filterQuality = FilterQuality.None,
+            contentDescription = contentDescription,
+            colorFilter = ColorFilter.tint(
+                MaterialTheme.colorScheme.onSecondaryContainer
+            )
         )
-    )
+    }
 }
 
 @Preview
