@@ -103,7 +103,11 @@ fun RoomInput(
             modifier = Modifier
                 .focusRequester(focusRequester),
             value = message,
-            onValueChange = { message = it }
+            onValueChange = { newMessage ->
+                if (newMessage.text.lines().size <= InputConfig.MaxLines) {
+                    message = newMessage
+                }
+            }
         )
 
         RoomInputCanvas(

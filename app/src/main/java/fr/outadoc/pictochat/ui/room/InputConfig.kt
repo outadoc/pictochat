@@ -9,4 +9,5 @@ object InputConfig {
         height = 81f
     )
     val CanvasRatio = CanvasSize.width / CanvasSize.height
+    val MaxLines = 5
 }

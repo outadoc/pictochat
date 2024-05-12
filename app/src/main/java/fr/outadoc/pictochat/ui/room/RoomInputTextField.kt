@@ -16,6 +16,7 @@ fun RoomInputTextField(
     BasicTextField(
         modifier = modifier.size(1.dp),
         value = value,
+        maxLines = InputConfig.MaxLines,
         onValueChange = onValueChange
     )
 }
