@@ -349,6 +349,10 @@ class NearbyConnectionManager(
     }
 
     override suspend fun broadcast(payload: ChatPayload) {
+        // Echo message locally
+        _payloadFlow.tryEmit(payload)
+
+        // Send message to all connected peers
         _state.value.connectedPeers.forEach { peer ->
             sendPayloadTo(peer.endpointId, payload)
         }

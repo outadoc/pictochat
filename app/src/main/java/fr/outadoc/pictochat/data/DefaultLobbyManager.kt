@@ -147,11 +147,6 @@ class DefaultLobbyManager(
 
         // Send the message to all connected devices
         connectionManager.broadcast(payload = payload)
-
-        // Also show the message locally
-        processReceivedMessage(
-            payload = payload
-        )
     }
 
     override suspend fun connect() {
@@ -191,85 +186,88 @@ class DefaultLobbyManager(
         when (payload) {
             is ChatPayload.Hello -> {}
             is ChatPayload.Status -> {
-                _state.update { state ->
-                    val sender = payload.source
-                    val existingProfile: UpdatedUserProfile? = state.knownProfiles[sender]
-
-                    if (existingProfile != null && existingProfile.updatedAt > payload.sentAt) {
-                        return@update state
-                    }
-
-                    state.copy(
-                        // Remember the user's profile
-                        knownProfiles = state.knownProfiles
-                            .put(
-                                sender,
-                                UpdatedUserProfile(
-                                    updatedAt = payload.sentAt,
-                                    UserProfile(
-                                        displayName = payload.displayName,
-                                        displayColor = ProfileColor.fromId(payload.displayColorId)
-                                    )
-                                )
-                            ),
-                        // Update the rooms' connected devices
-                        rooms = state.rooms
-                            .mapValues { (id, roomState) ->
-                                when (id) {
-                                    payload.roomId -> {
-                                        if (roomState.connectedDevices.contains(sender)) {
-                                            // The device is already known to be in the room
-                                            roomState
-                                        } else {
-                                            // The device is new to the room
-                                            roomState.copy(
-                                                connectedDevices = roomState.connectedDevices
-                                                    .add(sender),
-                                                eventHistoryIds = roomState.eventHistoryIds
-                                                    .add(payload.id),
-                                                eventHistory = roomState.eventHistory.add(
-                                                    ChatEvent.Join(
-                                                        id = payload.id,
-                                                        timestamp = payload.sentAt,
-                                                        deviceId = sender,
-                                                    )
-                                                )
-                                            )
-                                        }
-                                    }
-
-                                    else -> {
-                                        if (roomState.connectedDevices.contains(sender)) {
-                                            // The device was in the room and is leaving
-                                            roomState.copy(
-                                                connectedDevices = roomState.connectedDevices
-                                                    .remove(sender),
-                                                eventHistoryIds = roomState.eventHistoryIds
-                                                    .add(payload.id),
-                                                eventHistory = roomState.eventHistory.add(
-                                                    ChatEvent.Leave(
-                                                        id = payload.id,
-                                                        timestamp = payload.sentAt,
-                                                        deviceId = sender,
-                                                    )
-                                                ),
-                                            )
-                                        } else {
-                                            // The device is not in this room
-                                            roomState
-                                        }
-                                    }
-                                }
-                            }
-                            .toPersistentMap()
-                    )
-                }
+                processReceivedStatus(payload = payload)
             }
 
             is ChatPayload.Message -> {
-                // Received a message from someone else, process it
                 processReceivedMessage(payload = payload)
             }
+        }
+    }
+
+    private fun processReceivedStatus(payload: ChatPayload.Status) {
+        _state.update { state ->
+            val sender = payload.source
+            val existingProfile: UpdatedUserProfile? = state.knownProfiles[sender]
+
+            if (existingProfile != null && existingProfile.updatedAt > payload.sentAt) {
+                return@update state
+            }
+
+            state.copy(
+                // Remember the user's profile
+                knownProfiles = state.knownProfiles
+                    .put(
+                        sender,
+                        UpdatedUserProfile(
+                            updatedAt = payload.sentAt,
+                            UserProfile(
+                                displayName = payload.displayName,
+                                displayColor = ProfileColor.fromId(payload.displayColorId)
+                            )
+                        )
+                    ),
+                // Update the rooms' connected devices
+                rooms = state.rooms
+                    .mapValues { (id, roomState) ->
+                        when (id) {
+                            payload.roomId -> {
+                                if (roomState.connectedDevices.contains(sender)) {
+                                    // The device is already known to be in the room
+                                    roomState
+                                } else {
+                                    // The device is new to the room
+                                    roomState.copy(
+                                        connectedDevices = roomState.connectedDevices
+                                            .add(sender),
+                                        eventHistoryIds = roomState.eventHistoryIds
+                                            .add(payload.id),
+                                        eventHistory = roomState.eventHistory.add(
+                                            ChatEvent.Join(
+                                                id = payload.id,
+                                                timestamp = payload.sentAt,
+                                                deviceId = sender,
+                                            )
+                                        )
+                                    )
+                                }
+                            }
+
+                            else -> {
+                                if (roomState.connectedDevices.contains(sender)) {
+                                    // The device was in the room and is leaving
+                                    roomState.copy(
+                                        connectedDevices = roomState.connectedDevices
+                                            .remove(sender),
+                                        eventHistoryIds = roomState.eventHistoryIds
+                                            .add(payload.id),
+                                        eventHistory = roomState.eventHistory.add(
+                                            ChatEvent.Leave(
+                                                id = payload.id,
+                                                timestamp = payload.sentAt,
+                                                deviceId = sender,
+                                            )
+                                        ),
+                                    )
+                                } else {
+                                    // The device is not in this room
+                                    roomState
+                                }
+                            }
+                        }
+                    }
+                    .toPersistentMap()
+            )
         }
     }
 
