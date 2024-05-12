@@ -217,17 +217,47 @@ class DefaultLobbyManager(
                             .mapValues { (id, roomState) ->
                                 when (id) {
                                     payload.roomId -> {
-                                        roomState.copy(
-                                            connectedDevices = roomState.connectedDevices
-                                                .add(sender)
-                                        )
+                                        if (roomState.connectedDevices.contains(sender)) {
+                                            // The device is already known to be in the room
+                                            roomState
+                                        } else {
+                                            // The device is new to the room
+                                            roomState.copy(
+                                                connectedDevices = roomState.connectedDevices
+                                                    .add(sender),
+                                                eventHistoryIds = roomState.eventHistoryIds
+                                                    .add(payload.id),
+                                                eventHistory = roomState.eventHistory.add(
+                                                    ChatEvent.Join(
+                                                        id = payload.id,
+                                                        timestamp = payload.sentAt,
+                                                        deviceId = sender,
+                                                    )
+                                                )
+                                            )
+                                        }
                                     }
 
                                     else -> {
-                                        roomState.copy(
-                                            connectedDevices = roomState.connectedDevices
-                                                .remove(sender)
-                                        )
+                                        if (roomState.connectedDevices.contains(sender)) {
+                                            // The device was in the room and is leaving
+                                            roomState.copy(
+                                                connectedDevices = roomState.connectedDevices
+                                                    .remove(sender),
+                                                eventHistoryIds = roomState.eventHistoryIds
+                                                    .add(payload.id),
+                                                eventHistory = roomState.eventHistory.add(
+                                                    ChatEvent.Leave(
+                                                        id = payload.id,
+                                                        timestamp = payload.sentAt,
+                                                        deviceId = sender,
+                                                    )
+                                                ),
+                                            )
+                                        } else {
+                                            // The device is not in this room
+                                            roomState
+                                        }
                                     }
                                 }
                             }
