@@ -41,8 +41,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
@@ -78,8 +76,6 @@ class NearbyConnectionManager(
             )
         }
 
-    private val stateLock = Mutex()
-
     private val _payloadFlow = MutableSharedFlow<ChatPayload>(extraBufferCapacity = 32)
     override val payloadFlow = _payloadFlow.asSharedFlow()
 
@@ -110,112 +106,104 @@ class NearbyConnectionManager(
             deviceId = decoded.deviceId
         )
 
-        stateLock.withLock {
-            _state.update { state ->
-                Log.d(TAG, "onConnectionInitiated: Current state: $state")
+        _state.update { state ->
+            Log.d(TAG, "onConnectionInitiated: Current state: $state")
 
-                state.copy(
-                    knownPeers = state.knownPeers.put(endpointId, device.deviceId)
-                )
-            }
-
-            Log.d(
-                TAG,
-                "onConnectionInitiated: Accepting connection to $device, got payload $decoded"
+            state.copy(
+                knownPeers = state.knownPeers.put(endpointId, device.deviceId)
             )
+        }
 
-            wrap(label = "acceptConnection") {
-                connectionsClient
-                    .acceptConnection(endpointId, payloadCallbackDelegate)
-                    .await()
-            }
+        Log.d(
+            TAG,
+            "onConnectionInitiated: Accepting connection to $device, got payload $decoded"
+        )
+
+        wrap(label = "acceptConnection") {
+            connectionsClient
+                .acceptConnection(endpointId, payloadCallbackDelegate)
+                .await()
         }
     }
 
     private suspend fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
-        stateLock.withLock {
-            _state.update { state ->
-                val deviceId = state.knownPeers[endpointId]
+        _state.update { state ->
+            val deviceId = state.knownPeers[endpointId]
 
-                if (deviceId == null) {
-                    Log.d(TAG, "Ignoring connection result for unknown endpoint $endpointId")
-                    return@update state
+            if (deviceId == null) {
+                Log.d(TAG, "Ignoring connection result for unknown endpoint $endpointId")
+                return@update state
+            }
+
+            val device = RemoteDevice(endpointId, deviceId)
+
+            Log.d(
+                TAG,
+                "Connection result for $endpointId: ${
+                    ConnectionsStatusCodes.getStatusCodeString(result.status.statusCode)
+                }"
+            )
+
+            when (result.status.statusCode) {
+                ConnectionsStatusCodes.STATUS_OK,
+                ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT,
+                -> {
+                    state.copy(
+                        connectedPeers = state.connectedPeers.add(device)
+                    )
                 }
 
-                val device = RemoteDevice(endpointId, deviceId)
-
-                Log.d(
-                    TAG,
-                    "Connection result for $endpointId: ${
-                        ConnectionsStatusCodes.getStatusCodeString(result.status.statusCode)
-                    }"
-                )
-
-                when (result.status.statusCode) {
-                    ConnectionsStatusCodes.STATUS_OK,
-                    ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT,
-                    -> {
-                        state.copy(
-                            connectedPeers = state.connectedPeers.add(device)
-                        )
-                    }
-
-                    else -> {
-                        state.copy(
-                            connectedPeers = state.connectedPeers.remove(device)
-                        )
-                    }
+                else -> {
+                    state.copy(
+                        connectedPeers = state.connectedPeers.remove(device)
+                    )
                 }
             }
         }
     }
 
     private suspend fun onDisconnected(endpointId: String) {
-        stateLock.withLock {
-            _state.update { state ->
-                state.copy(
-                    connectedPeers = state.connectedPeers.removeAll { it.endpointId == endpointId },
-                )
-            }
+        _state.update { state ->
+            state.copy(
+                connectedPeers = state.connectedPeers.removeAll { it.endpointId == endpointId },
+            )
         }
     }
 
     private suspend fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-        stateLock.withLock {
-            val decoded = try {
-                ProtoBuf.decodeFromByteArray<EndpointInfoPayload>(info.endpointInfo)
-            } catch (e: SerializationException) {
-                Log.e(
-                    TAG,
-                    "Ignoring $endpointId, could not decode payload: ${info.endpointInfo.toHexString()}",
-                    e
-                )
-                return
-            }
-
-            val discoveredDevice = RemoteDevice(
-                endpointId = endpointId,
-                deviceId = decoded.deviceId
+        val decoded = try {
+            ProtoBuf.decodeFromByteArray<EndpointInfoPayload>(info.endpointInfo)
+        } catch (e: SerializationException) {
+            Log.e(
+                TAG,
+                "Ignoring $endpointId, could not decode payload: ${info.endpointInfo.toHexString()}",
+                e
             )
+            return
+        }
 
-            Log.i(TAG, "onEndpointFound: $discoveredDevice, got payload $decoded")
+        val discoveredDevice = RemoteDevice(
+            endpointId = endpointId,
+            deviceId = decoded.deviceId
+        )
 
-            val payload = EndpointInfoPayload(deviceId = deviceIdProvider.deviceId)
+        Log.i(TAG, "onEndpointFound: $discoveredDevice, got payload $decoded")
 
-            Log.i(TAG, "Requesting connection to $discoveredDevice: sending $payload")
+        val payload = EndpointInfoPayload(deviceId = deviceIdProvider.deviceId)
 
-            // Add some delay so that the other device is ready
-            delay(1.seconds)
+        Log.i(TAG, "Requesting connection to $discoveredDevice: sending $payload")
 
-            wrap(label = "requestConnection") {
-                connectionsClient
-                    .requestConnection(
-                        ProtoBuf.encodeToByteArray(payload),
-                        endpointId,
-                        connectionLifecycleCallbackDelegate
-                    )
-                    .await()
-            }
+        // Add some delay so that the other device is ready
+        delay(1.seconds)
+
+        wrap(label = "requestConnection") {
+            connectionsClient
+                .requestConnection(
+                    ProtoBuf.encodeToByteArray(payload),
+                    endpointId,
+                    connectionLifecycleCallbackDelegate
+                )
+                .await()
         }
     }
 
@@ -227,18 +215,16 @@ class NearbyConnectionManager(
 
         Log.d(TAG, "onPayloadReceived: $endpointId, payload: $proto")
 
-        stateLock.withLock {
-            val senderDeviceId: DeviceId? = _state.value.knownPeers[endpointId]
+        val senderDeviceId: DeviceId? = _state.value.knownPeers[endpointId]
 
-            _payloadFlow.tryEmit(proto)
+        _payloadFlow.tryEmit(proto)
 
-            _state.value.connectedPeers.forEach { device ->
-                if (device.endpointId != endpointId &&
-                    device.deviceId != senderDeviceId &&
-                    device.deviceId != proto.source
-                ) {
-                    sendPayloadTo(device.endpointId, proto)
-                }
+        _state.value.connectedPeers.forEach { device ->
+            if (device.endpointId != endpointId &&
+                device.deviceId != senderDeviceId &&
+                device.deviceId != proto.source
+            ) {
+                sendPayloadTo(device.endpointId, proto)
             }
         }
     }
@@ -312,10 +298,8 @@ class NearbyConnectionManager(
     }
 
     override suspend fun broadcast(payload: ChatPayload) {
-        stateLock.withLock {
-            _state.value.connectedPeers.forEach { peer ->
-                sendPayloadTo(peer.endpointId, payload)
-            }
+        _state.value.connectedPeers.forEach { peer ->
+            sendPayloadTo(peer.endpointId, payload)
         }
     }
 
