@@ -28,6 +28,7 @@ import fr.outadoc.pictochat.preferences.DeviceId
 import fr.outadoc.pictochat.preferences.UserProfile
 import fr.outadoc.pictochat.ui.theme.PictoChatTheme
 import fr.outadoc.pictochat.ui.theme.toColor
+import fr.outadoc.pictochat.ui.trimTransparentVerticalPixels
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 
@@ -139,10 +140,11 @@ private fun ChatEvent(
                         val bitmap = remember(event.message) {
                             BitmapFactory
                                 .decodeByteArray(
-                                    event.message.drawing,
-                                    0,
-                                    event.message.drawing.size
+                                    /* data = */ event.message.drawing,
+                                    /* offset = */ 0,
+                                    /* length = */ event.message.drawing.size
                                 )
+                                .trimTransparentVerticalPixels(paddingPx = 4)
                                 .asImageBitmap()
                         }
 
