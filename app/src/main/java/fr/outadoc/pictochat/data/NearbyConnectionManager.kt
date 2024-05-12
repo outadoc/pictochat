@@ -85,21 +85,7 @@ class NearbyConnectionManager(
     private var _connectionScope: CoroutineScope? = null
 
     private suspend fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
-        val decoded = try {
-            ProtoBuf.decodeFromByteArray<EndpointInfoPayload>(
-                connectionInfo.endpointInfo
-            )
-        } catch (e: SerializationException) {
-            Log.d(TAG, "Rejected connection to $endpointId, could not decode payload")
-
-            wrap(label = "rejectConnection") {
-                connectionsClient
-                    .rejectConnection(endpointId)
-                    .await()
-            }
-
-            return
-        }
+        val decoded: EndpointInfoPayload = ProtoBuf.decodeFromByteArray(connectionInfo.endpointInfo)
 
         val device = RemoteDevice(
             endpointId = endpointId,
@@ -119,10 +105,31 @@ class NearbyConnectionManager(
             "onConnectionInitiated: Accepting connection to $device, got payload $decoded"
         )
 
-        wrap(label = "acceptConnection") {
+        try {
             connectionsClient
                 .acceptConnection(endpointId, payloadCallbackDelegate)
                 .await()
+        } catch (e: ApiException) {
+            Log.e(TAG, "Failed to accept connection to $device", e)
+
+            when (e.statusCode) {
+                ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT -> {
+                    _state.update { state ->
+                        state.copy(
+                            connectedPeers = state.connectedPeers.add(device)
+                        )
+                    }
+                }
+
+                else -> {}
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to accept connection to $device", e)
+            _state.update { state ->
+                state.copy(
+                    connectedPeers = state.connectedPeers.removeAll { it.endpointId == endpointId }
+                )
+            }
         }
     }
 
@@ -196,7 +203,7 @@ class NearbyConnectionManager(
         // Add some delay so that the other device is ready
         delay(1.seconds)
 
-        wrap(label = "requestConnection") {
+        try {
             connectionsClient
                 .requestConnection(
                     ProtoBuf.encodeToByteArray(payload),
@@ -204,6 +211,28 @@ class NearbyConnectionManager(
                     connectionLifecycleCallbackDelegate
                 )
                 .await()
+        } catch (e: ApiException) {
+            Log.e(TAG, "Failed to request connection to $discoveredDevice", e)
+
+            when (e.statusCode) {
+                ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT -> {
+                    _state.update { state ->
+                        state.copy(
+                            connectedPeers = state.connectedPeers.add(discoveredDevice)
+                        )
+                    }
+                }
+
+                ConnectionsStatusCodes.STATUS_RADIO_ERROR -> {}
+                else -> {}
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to accept connection to $discoveredDevice", e)
+            _state.update { state ->
+                state.copy(
+                    connectedPeers = state.connectedPeers.removeAll { it.endpointId == endpointId }
+                )
+            }
         }
     }
 
@@ -253,7 +282,7 @@ class NearbyConnectionManager(
                 launch {
                     Log.d(TAG, "startDiscovery")
 
-                    wrap(label = "startDiscovery") {
+                    try {
                         connectionsClient
                             .startDiscovery(
                                 PICTOCHAT_SERVICE_ID,
@@ -263,6 +292,17 @@ class NearbyConnectionManager(
                                     .build()
                             )
                             .await()
+                    } catch (e: ApiException) {
+                        Log.e(TAG, "Failed to start discovery", e)
+                        when (e.statusCode) {
+                            ConnectionsStatusCodes.STATUS_ALREADY_DISCOVERING -> {}
+                            ConnectionsStatusCodes.STATUS_OUT_OF_ORDER_API_CALL -> {}
+                            else -> {}
+                        }
+                        close()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to start discovery", e)
+                        close()
                     }
                 }
 
@@ -273,7 +313,7 @@ class NearbyConnectionManager(
 
                     Log.d(TAG, "startAdvertising: $endpointInfo")
 
-                    wrap(label = "startAdvertising") {
+                    try {
                         connectionsClient
                             .startAdvertising(
                                 ProtoBuf.encodeToByteArray(endpointInfo),
@@ -284,6 +324,17 @@ class NearbyConnectionManager(
                                     .build()
                             )
                             .await()
+                    } catch (e: ApiException) {
+                        Log.e(TAG, "Failed to start advertising", e)
+                        when (e.statusCode) {
+                            ConnectionsStatusCodes.STATUS_ALREADY_ADVERTISING -> {}
+                            ConnectionsStatusCodes.STATUS_OUT_OF_ORDER_API_CALL -> {}
+                            else -> {}
+                        }
+                        close()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to start advertising", e)
+                        close()
                     }
                 }
             }
@@ -308,10 +359,27 @@ class NearbyConnectionManager(
 
         Log.d(TAG, "Sending payload to $endpointId: $payload")
 
-        wrap(label = "sendPayload") {
+        try {
             connectionsClient
                 .sendPayload(endpointId, Payload.fromBytes(protoBytes))
                 .await()
+        } catch (e: ApiException) {
+            Log.e(TAG, "Failed to send payload to $endpointId", e)
+
+            when (e.statusCode) {
+                ConnectionsStatusCodes.STATUS_OUT_OF_ORDER_API_CALL -> {}
+                ConnectionsStatusCodes.STATUS_ENDPOINT_UNKNOWN -> {
+                    _state.update { state ->
+                        state.copy(
+                            connectedPeers = state.connectedPeers.removeAll { it.endpointId == endpointId }
+                        )
+                    }
+                }
+
+                else -> {}
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send payload to $endpointId", e)
         }
     }
 
@@ -331,62 +399,6 @@ class NearbyConnectionManager(
                 isOnline = false,
                 connectedPeers = persistentSetOf(),
             )
-        }
-    }
-
-    private suspend fun <T> wrap(
-        label: String,
-        block: suspend () -> T,
-    ) {
-        try {
-            retry(label = label) {
-                try {
-                    block()
-                } catch (e: Exception) {
-                    when (e) {
-                        is ApiException -> {
-                            // Errors that we don't need to retry
-                            when (e.statusCode) {
-                                ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT -> {
-                                    Log.w(TAG, "Already connected to endpoint", e)
-                                }
-
-                                ConnectionsStatusCodes.STATUS_ENDPOINT_UNKNOWN -> {
-                                    Log.w(TAG, "Endpoint unknown", e)
-                                }
-
-                                ConnectionsStatusCodes.STATUS_ALREADY_DISCOVERING -> {
-                                    Log.w(TAG, "Already discovering", e)
-                                }
-
-                                ConnectionsStatusCodes.STATUS_ALREADY_ADVERTISING -> {
-                                    Log.w(TAG, "Already advertising", e)
-                                }
-
-                                else -> throw e
-                            }
-                        }
-
-                        else -> throw e
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            when (e) {
-                is ApiException -> {
-                    // Errors to be processed after retrying
-                    when (e.statusCode) {
-                        ConnectionsStatusCodes.STATUS_RADIO_ERROR -> {
-                            Log.e(TAG, "Radio error, closing connection", e)
-                            close()
-                        }
-
-                        else -> throw e
-                    }
-                }
-
-                else -> throw e
-            }
         }
     }
 
