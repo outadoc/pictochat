@@ -11,7 +11,7 @@ import fr.outadoc.pictochat.R
 
 val PictoChatFont =
     FontFamily(
-        Font(R.font.pictochat)
+        Font(R.font.nds)
     )
 
 val PictoChatTextStyle = TextStyle(

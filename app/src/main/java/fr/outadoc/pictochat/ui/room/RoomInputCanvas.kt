@@ -75,8 +75,10 @@ fun RoomInputCanvas(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    horizontal = 8.dp,
-                    vertical = 3.dp
+                    start = 8.dp,
+                    end = 8.dp,
+                    top = 4.dp,
+                    bottom = 5.dp,
                 )
         )
     }

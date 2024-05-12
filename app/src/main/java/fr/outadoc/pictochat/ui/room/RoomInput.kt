@@ -71,7 +71,7 @@ fun RoomInput(
         size = InputConfig.CanvasSize,
     ) {
         val horizontalPaddingPx = 4f
-        val verticalPaddingPx = 5f
+        val verticalPaddingPx = 2f
 
         drawText(
             textMeasurer,
