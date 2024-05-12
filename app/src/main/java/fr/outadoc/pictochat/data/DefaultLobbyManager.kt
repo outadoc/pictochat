@@ -168,18 +168,21 @@ class DefaultLobbyManager(
                 }
 
                 launch {
-                    state.collect { state ->
-                        connectionManager.broadcast(
-                            payload = ChatPayload.Status(
-                                id = randomInt(),
-                                source = deviceIdProvider.deviceId,
-                                sentAt = clock.now(),
-                                displayName = state.userProfile.displayName,
-                                displayColorId = state.userProfile.displayColor.id,
-                                roomId = state.joinedRoomId
+                    state
+                        .map { state -> state.userProfile to state.joinedRoomId }
+                        .distinctUntilChanged()
+                        .collect { (userProfile, joinedRoomId) ->
+                            connectionManager.broadcast(
+                                payload = ChatPayload.Status(
+                                    id = randomInt(),
+                                    source = deviceIdProvider.deviceId,
+                                    sentAt = clock.now(),
+                                    displayName = userProfile.displayName,
+                                    displayColorId = userProfile.displayColor.id,
+                                    roomId = joinedRoomId
+                                )
                             )
-                        )
-                    }
+                        }
                 }
             }
         }
